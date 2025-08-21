@@ -5,128 +5,142 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgrad
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "./interfaces/IRWAVault.sol";
+import "./RegistryAware.sol";
 
-contract RWAVault is IRWAVault, ERC4626Upgradeable {
+contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
 
   uint constant public BPS = 100_00;
   uint constant public BASE_APY = 7_00;
 
   uint private vaultStartTimestamp;
+
   uint private assetCap;
-  bool private paused;
 
   uint private totalDeposited;
 
-  address immutable private vaultManager;
-  address immutable private vaultContractAdmin;
-
+  uint private depositRequestNextId;
   uint private redeemRequestNexId;
   uint private lastFulfilledRedeemRequestId;
 
-  // todo: move to registry, refactor to member ids
-  mapping(address => bool) private isMember; 
+  mapping(uint depositRequestId => DepositRequest) private depositRequests;
+  mapping(uint redeemRequestId => RedeemRequest) private redeemRequests;
 
-  mapping(uint => RedeemRequest) private redeemRequests;
-
-  modifier onlyVaultManager() {
-    require(msg.sender == vaultManager, OnlyVaultManager());
-    _;
-  }
-
-  modifier onlyMember() {
-    require(isMember[msg.sender], OnlyMember());
-    _;
-  }
-
-  modifier NotPaused() {
-    require(paused == false, VaultPaused());
-    _;
-  }
-
-  // todo: only permissioned
-  function initialize() external {
-    vaultStartTimestamp = block.timestamp;
+  constructor(address _registry) RegistryAware(_registry) { }
+  
+  function initialize(address asset) only(C_GOVERNOR) external {
+    __ERC4626_init(IERC20(asset));
+    
     redeemRequestNexId = 1;
+    depositRequestNextId = 1;
   }
 
-  function setAssetCap(uint newAssetCap) external onlyVaultManager {
+  function setAssetCap(uint newAssetCap) external only(C_VAULT_MANAGER) {
     assetCap = newAssetCap;
   }
 
-  function setPaused(bool newPaused) external onlyVaultManager {
-    paused = newPaused;
-  }
-
-  // todo: move to registry
-  function addMember(address member) external onlyVaultManager {
-    isMember[member] = true;
-  }
-
-  function removeMember(address member) external onlyVaultManager {
-    isMember[member] = false;
-  }
-
+  // todo: should not be limited because exceeding cap goes to the queue
   function maxDeposit(address) public view override returns (uint) {
     if (assetCap <= totalDeposited) return 0;
     return assetCap - totalDeposited;
   }
 
-  function deposit(uint assets, address receiver) public override onlyMember NotPaused returns (uint) {
-    uint maxAssets = maxDeposit(receiver);
+  // todo: handle controller and owner (controller == owner == msg.sender)
+  function requestDeposit(uint assets, address /* controller */, address owner) external onlyMember whenNotPaused(PAUSE_GLOBAL) returns (uint256 requestId) {
+    requestId = depositRequestNextId++;
+    SafeERC20.safeTransferFrom(IERC20(asset()), msg.sender, address(this), assets);
 
-    // todo: if larger than allowed cap, transfer to deposit request queue
-    if (assets > maxAssets) {
-      revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+    depositRequests[requestId] = DepositRequest(owner, assets, 0, false);
+
+    emit DepositRequested(msg.sender, requestId, assets);
+    
+    if (totalDeposited + assets <= assetCap) {
+      fulfillDeposit(requestId, assets, true);
     }
-
-    uint shares = previewDeposit(assets);
-    _deposit(_msgSender(), receiver, assets, shares);
-
-    totalDeposited += assets;
-
-    return shares;
-  }
-
-  function requestRedeem(uint shares, address controller, address owner) external onlyMember NotPaused returns (uint requestId) {
-    require(balanceOf(owner) >= shares, InsufficientBalance());
-    require(shares != 0, ZeroShares());
-
-    requestId = redeemRequestNexId;
-
-    SafeERC20.safeTransferFrom(this, owner, address(this), shares);
-
-    redeemRequests[requestId] = RedeemRequest(owner, shares, false, false);
-
-    emit RedeemRequested(controller, owner, requestId, msg.sender, shares);
+    
     return requestId;
   }
 
-  function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external onlyVaultManager {
+  function cancelDepositRequest(uint requestId) external whenNotPaused(PAUSE_GLOBAL) {
+    DepositRequest memory depositRequest = depositRequests[requestId];
+    require(msg.sender == depositRequest.owner || msg.sender == fetch(C_VAULT_MANAGER), OnlyRequestOwner());
+
+    // send assets back
+    SafeERC20.safeTransferFrom(IERC20(asset()), address(this), depositRequest.owner, depositRequest.assets);
+
+    depositRequest.finished = true;
+    depositRequests[requestId] = depositRequest;
+  }
+
+  function fulfillDeposit(uint requestId, uint amount, bool finishedRequest) public only(C_VAULT_MANAGER) whenNotPaused(PAUSE_GLOBAL) {
+    _fulfillDeposit(requestId, amount, finishedRequest);
+  } 
+
+  // todo: use uniform names for amount/assets in the whole contract
+  function _fulfillDeposit(uint requestId, uint amount, bool finishedRequest) internal {
+    DepositRequest memory depositRequest = depositRequests[requestId];
+    require(depositRequest.finished == false, AlreadyFinished());
+    require(depositRequest.fulfilledAssets + amount <= depositRequest.assets, RequestedAssetsExceeded());
+
+    uint shares = previewDeposit(amount);
+    _mint(depositRequest.owner, shares);
+
+    depositRequest.fulfilledAssets += amount;
+    totalDeposited += amount;
+
+    if (finishedRequest) {
+      depositRequest.finished = true;
+      uint unfulfilledAmount = depositRequest.assets - (depositRequest.fulfilledAssets + amount);
+      if (unfulfilledAmount > 0) {
+        SafeERC20.safeTransferFrom(IERC20(asset()), address(this),  depositRequest.owner, unfulfilledAmount);
+      } 
+    }
+
+    depositRequests[requestId] = depositRequest;
+  }
+
+  // todo: handle controller and owner (controller == owner == msg.sender)
+  function requestRedeem(uint shares, address /* controller */, address owner) external onlyMember whenNotPaused(PAUSE_GLOBAL) returns (uint requestId) {
+    require(balanceOf(owner) >= shares, InsufficientBalance());
+    require(shares != 0, ZeroShares());
+
+    requestId = redeemRequestNexId++;
+
+    SafeERC20.safeTransferFrom(this, owner, address(this), shares);
+
+    redeemRequests[requestId] = RedeemRequest(owner, shares, 0, false);
+
+    emit RedeemRequested(msg.sender, requestId, shares);
+    return requestId;
+  }
+
+  function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external only(C_VAULT_MANAGER) whenNotPaused(PAUSE_GLOBAL) {
     uint totalFulfilledAssets = 0;
 
     while(lastFulfilledRedeemRequestId < untilRequestId) {
       lastFulfilledRedeemRequestId++;
       RedeemRequest memory redeemRequest = redeemRequests[lastFulfilledRedeemRequestId];
 
-      if (redeemRequest.canceled) continue;
+      if (redeemRequest.finished) continue;
 
        uint256 assets = previewRedeem(redeemRequest.shares);
       _withdraw(_msgSender(), redeemRequest.owner, redeemRequest.owner, assets, redeemRequest.shares);
 
       totalFulfilledAssets += assets;
 
-      redeemRequest.fulfilled = true;
+      redeemRequest.fulfilledShares = redeemRequest.shares;
       redeemRequests[lastFulfilledRedeemRequestId] = redeemRequest;
     }
 
     require(totalFulfilledAssets <= maxTotalAssets, MaxAssetsExceeded());
+
+    totalDeposited -= totalFulfilledAssets;
   }
 
-  function cancelRedeemRequest(uint requestId) onlyMember NotPaused external {
+  function cancelRedeemRequest(uint requestId) whenNotPaused(PAUSE_GLOBAL) external {
     RedeemRequest memory redeemRequest = redeemRequests[requestId];
-    require(msg.sender == redeemRequest.owner || msg.sender == vaultManager, OnlyRequestOwner());
+    require(msg.sender == redeemRequest.owner || msg.sender == fetch(C_VAULT_MANAGER), OnlyRequestOwner());
 
-    redeemRequest.canceled = true;
+    redeemRequest.finished = true;
     redeemRequests[requestId] = redeemRequest;
   }
 
@@ -142,5 +156,9 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable {
   function _convertToAssets(uint shares, Math.Rounding rounding) internal view override returns (uint) {
     uint timePassed = block.timestamp - vaultStartTimestamp;
     return Math.mulDiv(shares, timePassed * BASE_APY, BPS * 365 days, rounding);
+  }
+
+  function totalAssets() public view override returns (uint256) {
+    return totalDeposited; // todo: + in deposit queue?
   }
 }
