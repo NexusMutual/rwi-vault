@@ -10,9 +10,10 @@ import "./RegistryAware.sol";
 contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
 
   uint constant public BPS = 100_00;
-  uint constant public BASE_APY = 7_00;
 
-  uint private vaultStartTimestamp;
+  uint private baseApy;
+  uint private baseApyLastUpdateTimestamp;
+  uint private assetsPerShareLastUpdate;
 
   uint private assetCap;
 
@@ -29,13 +30,22 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
   
   function initialize(address asset) only(C_GOVERNOR) external {
     __ERC4626_init(IERC20(asset));
-    
+
+    baseApyLastUpdateTimestamp = block.timestamp;
+    assetsPerShareLastUpdate = 1 ether;
+
     redeemRequestNexId = 1;
     depositRequestNextId = 1;
   }
 
   function setAssetCap(uint newAssetCap) external only(C_VAULT_MANAGER) {
     assetCap = newAssetCap;
+  }
+
+  function changeBaseApy(uint newBaseApy) external only(C_VAULT_MANAGER) {
+    assetsPerShareLastUpdate = convertToAssets(1 ether);
+    baseApyLastUpdateTimestamp = block.timestamp;
+    baseApy = newBaseApy;
   }
 
   // todo: should not be limited because exceeding cap goes to the queue
@@ -149,13 +159,23 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
   }
 
   function _convertToShares(uint assets, Math.Rounding rounding) internal view override returns (uint) {
-    uint timePassed = block.timestamp - vaultStartTimestamp;
-    return Math.mulDiv(assets, BPS * 365 days, timePassed * BASE_APY, rounding);
+    uint timePassed = block.timestamp - baseApyLastUpdateTimestamp;
+    return Math.mulDiv(
+      assets, 
+      BPS * 365 days * 1 ether, 
+      assetsPerShareLastUpdate * timePassed * baseApy, 
+      rounding
+    );
   }
 
   function _convertToAssets(uint shares, Math.Rounding rounding) internal view override returns (uint) {
-    uint timePassed = block.timestamp - vaultStartTimestamp;
-    return Math.mulDiv(shares, timePassed * BASE_APY, BPS * 365 days, rounding);
+    uint timePassed = block.timestamp - baseApyLastUpdateTimestamp;
+    return Math.mulDiv(
+      shares, 
+      assetsPerShareLastUpdate * timePassed * baseApy, 
+      BPS * 365 days * 1 ether,
+      rounding
+    );
   }
 
   function totalAssets() public view override returns (uint256) {
