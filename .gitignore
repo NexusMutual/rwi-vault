@@ -1,20 +1,14 @@
-# Node modules
-/node_modules
-
-# Compilation output
+.env
+.idea/
+.vscode/
+.DS_Store
 /dist
-
-# pnpm deploy output
+artifacts/
 /bundle
-
-# Hardhat Build Artifacts
-/artifacts
-
-# Hardhat compilation (v2) support directory
-/cache
-
-# Typechain output
-/types
-
-# Hardhat coverage reports
-/coverage
+/build/
+cache/
+types/
+node_modules/
+coverage/
+coverage.json
+tenderly.yaml

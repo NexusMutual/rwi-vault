@@ -11,10 +11,6 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
 
   uint constant public BPS = 100_00;
 
-  uint private baseApy;
-  uint private baseApyLastUpdateTimestamp;
-  uint private assetsPerShareLastUpdate;
-
   uint private assetCap;
 
   uint private totalDeposited;
@@ -26,13 +22,20 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
   mapping(uint depositRequestId => DepositRequest) private depositRequests;
   mapping(uint redeemRequestId => RedeemRequest) private redeemRequests;
 
+  BaseApyConfig[] private apyConfigs;
+  uint private activeApyConfig;
+
   constructor(address _registry) RegistryAware(_registry) { }
   
-  function initialize(address asset) only(C_GOVERNOR) external {
-    __ERC4626_init(IERC20(asset));
+  function initialize(address _asset, uint _baseApy) only(C_GOVERNOR) external {
+    __ERC4626_init(IERC20(_asset));
 
-    baseApyLastUpdateTimestamp = block.timestamp;
-    assetsPerShareLastUpdate = 1 ether;
+    apyConfigs.push(BaseApyConfig({
+      apy: uint32(_baseApy),
+      activeFrom: uint32(block.timestamp),
+      assetsPerShare: 10 ** decimals() // todo: is it 1:1 to begin with?
+    }));
+    activeApyConfig = 0;
 
     redeemRequestNexId = 1;
     depositRequestNextId = 1;
@@ -42,16 +45,33 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
     assetCap = newAssetCap;
   }
 
-  function changeBaseApy(uint newBaseApy) external only(C_VAULT_MANAGER) {
-    assetsPerShareLastUpdate = convertToAssets(1 ether);
-    baseApyLastUpdateTimestamp = block.timestamp;
-    baseApy = newBaseApy;
-  }
+  /// @dev newBaseApy is in bips, check if we need to validate it
+  function proposeBaseApyChange(uint newBaseApy, uint activeFrom) external only(C_VAULT_MANAGER) {
+    uint lastActiveFrom = apyConfigs[apyConfigs.length - 1].activeFrom;
+    require(activeFrom > lastActiveFrom, ProposalActiveBeforePreviousOne());
+    
+    apyConfigs.push(BaseApyConfig({
+      apy: uint32(newBaseApy),
+      activeFrom: uint32(activeFrom),
+      assetsPerShare: 0
+    }));
 
-  // todo: should not be limited because exceeding cap goes to the queue
-  function maxDeposit(address) public view override returns (uint) {
-    if (assetCap <= totalDeposited) return 0;
-    return assetCap - totalDeposited;
+    emit BaseApyChangeProposed(newBaseApy, activeFrom);
+  } 
+
+  function executeBaseApyChange() external {
+    require(activeApyConfig + 1 < apyConfigs.length, ProposalDoesntExist());
+    BaseApyConfig memory nextConfig = apyConfigs[activeApyConfig + 1];
+
+    require(nextConfig.activeFrom <= block.timestamp, ProposalNotActive());
+
+    nextConfig.activeFrom = uint32(block.timestamp);
+    nextConfig.assetsPerShare = convertToAssets(10 ** decimals());
+
+    apyConfigs[activeApyConfig + 1] = nextConfig;
+    activeApyConfig++;
+
+    emit BaseApyChangeExecuted(nextConfig.apy, nextConfig.activeFrom, nextConfig.assetsPerShare);
   }
 
   // todo: handle controller and owner (controller == owner == msg.sender)
@@ -159,21 +179,25 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
   }
 
   function _convertToShares(uint assets, Math.Rounding rounding) internal view override returns (uint) {
-    uint timePassed = block.timestamp - baseApyLastUpdateTimestamp;
+    BaseApyConfig memory baseApy = apyConfigs[activeApyConfig];
+
+    uint timePassed = block.timestamp - baseApy.activeFrom;
     return Math.mulDiv(
       assets, 
-      BPS * 365 days * 1 ether, 
-      assetsPerShareLastUpdate * timePassed * baseApy, 
+      BPS * 365 days * 10 ** decimals(), 
+      baseApy.assetsPerShare * timePassed * baseApy.apy, 
       rounding
     );
   }
 
   function _convertToAssets(uint shares, Math.Rounding rounding) internal view override returns (uint) {
-    uint timePassed = block.timestamp - baseApyLastUpdateTimestamp;
+    BaseApyConfig memory baseApy = apyConfigs[activeApyConfig];
+    
+    uint timePassed = block.timestamp - baseApy.activeFrom;
     return Math.mulDiv(
       shares, 
-      assetsPerShareLastUpdate * timePassed * baseApy, 
-      BPS * 365 days * 1 ether,
+      baseApy.assetsPerShare * timePassed * baseApy.apy, 
+      BPS * 365 days * 10 ** decimals(),
       rounding
     );
   }
