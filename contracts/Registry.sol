@@ -27,7 +27,7 @@ contract Registry is IRegistry {
   }
 
   modifier onlyVaultManager() {
-    address vaultManager = contracts[C_VAULT_MANAGER].addr;
+    address vaultManager = contracts[R_VAULT_MANAGER].addr;
     require(msg.sender == vaultManager, OnlyVaultManager());
     _;
   }
@@ -35,6 +35,10 @@ contract Registry is IRegistry {
   modifier onlyEmergencyAdmin() {
     require(isEmergencyAdmin[msg.sender], OnlyEmergencyAdmin());
     _;
+  }
+
+  constructor(address governor) {
+    _addContract(C_GOVERNOR, governor, false);
   }
 
   /* == EMERGENCY PAUSE == */

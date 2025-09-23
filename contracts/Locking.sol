@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./external/OpenZeppelin/SafeERC20.sol";
 
 import "./interfaces/ILocking.sol";
 import "./RegistryAware.sol";
@@ -18,8 +18,6 @@ contract Locking is ILocking, RegistryAware {
   constructor(address _registry) RegistryAware(_registry) { 
     vault = fetch(C_VAULT);
   }
-
-  // function initialize() only(C_GOVERNOR) external { }
 
   function lockShares(uint amount, uint period) external onlyMember {
     require(period >= MIN_LOCK_PERIOD && period <= MAX_LOCK_PERIOD, InvalidPeriod());
@@ -73,7 +71,7 @@ contract Locking is ILocking, RegistryAware {
     address asset,
     uint totalAmount, 
     uint snapshotTimestamp
-  ) external only(C_VAULT_MANAGER) {
+  ) external only(R_VAULT_MANAGER) {
     require(memberIds.length == amounts.length, ArraysLengthMustBeEqual());
 
     uint sumRewards = 0;
