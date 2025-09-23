@@ -5,11 +5,13 @@ pragma solidity ^0.8.28;
 import "./interfaces/IRegistry.sol";
 
 // contract indexes
-uint constant C_REGISTRY             = 1 << 0;   // 1
-uint constant C_GOVERNOR             = 1 << 1;   // 2
-uint constant C_VAULT_MANAGER        = 1 << 2;   // 4
-uint constant C_VAULT                = 1 << 3;   // 8
-uint constant C_LOCKING              = 1 << 4;   // 16
+uint constant C_REGISTRY             = 1 << 0;
+uint constant C_GOVERNOR             = 1 << 1;
+uint constant C_VAULT                = 1 << 2;
+uint constant C_LOCKING              = 1 << 3;
+
+// roles
+uint constant R_VAULT_MANAGER        = 1 << 10;
 
 // pause types constants
 // todo: simplify if only one pause setting is used in the end
@@ -42,6 +44,12 @@ contract RegistryAware {
   modifier onlyMember() {
     require(registry.isMember(msg.sender), OnlyMember());
     _;
+  }
+
+  function validateMemberGetId(address member) internal view returns (uint) {
+    uint memberId = registry.getMemberId(member);
+    require(memberId != 0, OnlyMember());
+    return memberId;
   }
 
   function fetch(uint index) internal view returns (address) {
