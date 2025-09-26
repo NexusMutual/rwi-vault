@@ -26,9 +26,9 @@ contract Registry is IRegistry {
     _;
   }
 
-  modifier onlyVaultManager() {
-    address vaultManager = contracts[R_VAULT_MANAGER].addr;
-    require(msg.sender == vaultManager, OnlyVaultManager());
+  modifier onlyMembershipManager() {
+    address membershipManager = contracts[A_MEMBERSHIP_MANAGER].addr;
+    require(msg.sender == membershipManager, OnlyMembershipManager());
     _;
   }
 
@@ -50,7 +50,7 @@ contract Registry is IRegistry {
 
   function setPauseConfig(uint newPauseConfig) external onlyEmergencyAdmin {
     pauseConfig = newPauseConfig;
-    emit PauseConfigConfirmed(newPauseConfig, msg.sender); // todo: rename event?
+    emit PauseConfigConfirmed(newPauseConfig, msg.sender);
   }
 
   function getPauseConfig() external view returns (uint config) {
@@ -89,7 +89,7 @@ contract Registry is IRegistry {
     return membersMeta.lastMemberId;
   }
 
-  function addMember(address member) external onlyVaultManager {
+  function addMember(address member) external onlyMembershipManager {
     require(memberIds[member] == 0, AlreadyMember());
 
     uint memberId = ++membersMeta.lastMemberId;
@@ -100,21 +100,22 @@ contract Registry is IRegistry {
     emit MembershipChanged(memberId, address(0), member);
   }
 
-  function changeMemberAddress(address from, address to) external onlyVaultManager {
-    uint memberId = memberIds[from];
+  function changeMemberAddress(address newAddress) external {
+    uint memberId = memberIds[msg.sender];
     require(memberId != 0, NotMember());
-    require(memberIds[to] == 0, AlreadyMember());
+    require(memberIds[newAddress] == 0, AlreadyMember());
 
-    delete memberIds[from];
-    memberIds[to] = memberId;
-    members[memberId] = to;
+    delete memberIds[msg.sender];
+    memberIds[newAddress] = memberId;
+    members[memberId] = newAddress;
 
-    emit MembershipChanged(memberId, from, to);
+    emit MembershipChanged(memberId, msg.sender, newAddress);
   }
 
-  function removeMember(uint memberId) external onlyVaultManager {
+  function removeMember(uint memberId) external {
     require(memberId != 0, NotMember());
     address member = members[memberId];
+    require(msg.sender == member || msg.sender == contracts[A_MEMBERSHIP_MANAGER].addr, OnlyMemberOrManager());
 
     delete members[memberId];
     delete memberIds[member];
@@ -132,16 +133,23 @@ contract Registry is IRegistry {
 
   function isProxyContract(uint index) external view returns (bool) {
     require(isValidContractIndex(index), InvalidContractIndex());
-    return contracts[index].isProxy;
+    Contract memory contractDetails = contracts[index];
+    require(contractDetails.addr != address(0), ContractDoesNotExist());
+    return contractDetails.isProxy;
   }
 
   function getContractAddressByIndex(uint index) external view returns (address payable) {
     require(isValidContractIndex(index), InvalidContractIndex());
-    return payable(contracts[index].addr);
+    address addr = contracts[index].addr;
+    require(addr != address(0), ContractDoesNotExist());
+    return payable(addr);
   }
 
   function getContractIndexByAddress(address contractAddress) external view returns (uint) {
-    return contractIndexes[contractAddress];
+    require(contractAddress != address(0), InvalidContractAddress());
+    uint idx = contractIndexes[contractAddress];
+    require(idx != 0, ContractDoesNotExist());
+    return idx;
   }
 
   function getContracts(uint[] memory indexes) external view returns (Contract[] memory _contracts) {

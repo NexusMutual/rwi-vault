@@ -32,7 +32,7 @@ interface IRegistry {
   function getMemberCount() external view returns (uint);
   function getLastMemberId() external view returns (uint);
   function addMember(address member) external;
-  function changeMemberAddress(address from, address to) external;
+  function changeMemberAddress(address newAddress) external;
   function removeMember(uint memberId) external;
 
   /* == CONTRACT MANAGEMENT == */
@@ -88,5 +88,6 @@ interface IRegistry {
   error OnlyGovernor();
   error NotProxyOwner();
   error NotMemberRoles();
-  error OnlyVaultManager();
+  error OnlyMembershipManager();
+  error OnlyMemberOrManager();
 }

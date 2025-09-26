@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "./external/OpenZeppelin/ERC4626Upgradeable.sol";
 import "./external/OpenZeppelin/Math.sol";
+import "./external/OpenZeppelin/SafeERC20.sol";
+import "./external/OpenZeppelin/SafeCast.sol";
 
 import "./interfaces/IRWAVault.sol";
+import "./interfaces/ILocks.sol";
 import "./RegistryAware.sol";
+import "./ERC7540.sol";
 
-contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
+contract RWAVault is IRWAVault, ERC7540, RegistryAware {
+  using SafeERC20 for IERC20;
+  using SafeCast for uint;
 
   uint constant public BPS = 100_00;
+  uint constant public MIN_APY_PROPOSAL_TIME = 90 days;
 
   uint public assetCap;
-
   uint private totalDeposited;
 
   uint private depositRequestNextId;
@@ -22,31 +27,40 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
   mapping(uint depositRequestId => DepositRequestData) private depositRequests;
   mapping(uint redeemRequestId => RedeemRequestData) private redeemRequests;
 
-  BaseApyConfig[] private apyConfigs;
-  uint private activeApyConfig;
+  BaseApyConfig private apyConfig;
 
-  constructor(address _registry) RegistryAware(_registry) { }
+  constructor(address _registry, address _asset, uint8 _assetDecimals) RegistryAware(_registry) ERC7540(_asset, _assetDecimals) { 
+  }
 
-  function initialize(address _asset, uint _baseApy) only(C_GOVERNOR) external {
-    __ERC4626_init(IERC20(_asset));
+  function initialize(string memory _name, string memory _symbol, uint _baseApy) only(C_GOVERNOR) external {
+    __ERC20_init(_name, _symbol);
 
-    apyConfigs.push(BaseApyConfig({
-      apy: uint32(_baseApy),
-      activeFrom: uint32(block.timestamp),
-      assetsPerShare: 10 ** decimals() // todo: is it 1:1 to begin with?
-    }));
-    activeApyConfig = 0;
+    apyConfig = BaseApyConfig({
+      startAssetsPerShare: ASSET_UNIT.toUint96(),
+      apy: _baseApy.toUint16(),
+      activeFrom: block.timestamp.toUint32(),
+      proposedApy: 0,
+      proposedActivationTime: 0
+    });
 
     redeemRequestNexId = 1;
     depositRequestNextId = 1;
   }
 
-  function setAssetCap(uint newAssetCap) external only(R_VAULT_MANAGER) {
+  function decimals() external view override returns (uint8) {
+    return assetDecimals;
+  }
+
+  function setAssetCap(uint newAssetCap) external only(A_VAULT_MANAGER) {
     assetCap = newAssetCap;
   }
 
   function getBaseApy() external view returns(uint) {
-    return apyConfigs[activeApyConfig].apy;
+    return apyConfig.apy;
+  }
+
+  function getBaseApyConfig() external view returns(BaseApyConfig memory) {
+    return apyConfig;
   }
 
   function getDepositRequests(uint[] calldata requestIds) external view returns(DepositRequestData[] memory) {
@@ -65,179 +79,213 @@ contract RWAVault is IRWAVault, ERC4626Upgradeable, RegistryAware {
     return requests;
   }
 
-  /// @dev newBaseApy is in bips, check if we need to validate it
-  function proposeBaseApyChange(uint newBaseApy, uint activeFrom) external only(R_VAULT_MANAGER) {
-    uint lastActiveFrom = apyConfigs[apyConfigs.length - 1].activeFrom;
-
-    require(activeFrom > lastActiveFrom, ProposalActiveBeforePreviousOne());
+  function proposeBaseApyChange(uint proposalApy, uint proposalActivationTime) external only(A_VAULT_MANAGER) {
+    require(proposalApy < BPS, InvalidApy());
+    require(proposalActivationTime > block.timestamp + MIN_APY_PROPOSAL_TIME, ProposalActivationTimeTooSoon());
     
-    apyConfigs.push(BaseApyConfig({
-      apy: uint32(newBaseApy),
-      activeFrom: uint32(activeFrom),
-      assetsPerShare: 0
-    }));
+    apyConfig.proposedApy = proposalApy.toUint16(); 
+    apyConfig.proposedActivationTime = proposalActivationTime.toUint32();
 
-    emit BaseApyChangeProposed(newBaseApy, activeFrom);
+    emit BaseApyChangeProposed(proposalApy, proposalActivationTime);
   } 
 
   function executeBaseApyChange() external {
-    require(activeApyConfig + 1 < apyConfigs.length, ProposalDoesntExist());
-    BaseApyConfig memory nextConfig = apyConfigs[activeApyConfig + 1];
+    require(apyConfig.proposedApy > 0, ProposalDoesntExist());
+    require(apyConfig.proposedActivationTime <= block.timestamp, ProposalNotActive());
 
-    require(nextConfig.activeFrom <= block.timestamp, ProposalNotActive());
+    BaseApyConfig memory config = apyConfig;
 
-    nextConfig.activeFrom = uint32(block.timestamp);
-    nextConfig.assetsPerShare = convertToAssets(10 ** decimals());
+    config.startAssetsPerShare = convertToAssets(ASSET_UNIT).toUint96();
+    config.apy = apyConfig.proposedApy;
+    config.activeFrom = block.timestamp.toUint32();
 
-    apyConfigs[activeApyConfig + 1] = nextConfig;
-    activeApyConfig++;
+    config.proposedApy = 0;
+    config.proposedActivationTime = 0;
 
-    emit BaseApyChangeExecuted(nextConfig.apy, nextConfig.activeFrom, nextConfig.assetsPerShare);
+    apyConfig = config;
+
+    emit BaseApyChangeExecuted(apyConfig.apy, apyConfig.activeFrom, apyConfig.startAssetsPerShare);
   }
 
-  function requestDeposit(uint assets, address controller, address owner) external whenNotPaused(PAUSE_GLOBAL) returns (uint256 requestId) {
+  function requestDeposit(uint assets, address controller, address owner) external override(ERC7540, IERC7540) whenNotPaused(PAUSE_VAULT) returns (uint requestId) {
+    return _requestDeposit(assets, controller, owner, 0);
+  }
+
+  function requestDepositAndLock(uint assets, address controller, address owner, uint lockPeriod) external whenNotPaused(PAUSE_VAULT) returns (uint requestId) {
+    return _requestDeposit(assets, controller, owner, lockPeriod);
+  }
+
+  /// @dev lockPeriod is 0 if no lock is requested
+  function _requestDeposit(uint assets, address controller, address owner, uint lockPeriod) internal returns (uint requestId) {
     require(owner == msg.sender, OwnerNotSender());
     require(controller == msg.sender, ControllerNotSender());
-    uint memberId = validateMemberGetId(msg.sender);
+    uint memberId = getActiveMemberId(msg.sender);
 
     requestId = depositRequestNextId++;
 
-    SafeERC20.safeTransferFrom(IERC20(asset()), owner, address(this), assets);
+    IERC20(asset).safeTransferFrom(owner, address(this), assets);
 
-    depositRequests[requestId] = DepositRequestData(assets, 0, uint32(memberId), false);
+    depositRequests[requestId] = DepositRequestData({
+      assets: assets.toUint96(),
+      fulfilledAssets: 0,
+      memberId: memberId.toUint32(),
+      lockPeriod: lockPeriod.toUint32(),
+      status: RequestStatus.PENDING
+    });
 
     emit DepositRequest(controller, owner, requestId, msg.sender, assets);
     
     if (totalDeposited + assets <= assetCap) {
-      _fulfillDeposit(requestId, assets, true);
+      _fulfillDeposit(requestId, assets);
     }
     
     return requestId;
   }
 
-  function cancelDepositRequest(uint requestId) external whenNotPaused(PAUSE_GLOBAL) {
+  function cancelDepositRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     DepositRequestData memory depositRequest = depositRequests[requestId];
     address memberAddress = registry.getMemberAddress(depositRequest.memberId);
-    require(msg.sender == memberAddress|| msg.sender == fetch(R_VAULT_MANAGER), OnlyRequestOwnerOrVaultManager());
+    require(msg.sender == memberAddress|| msg.sender == fetch(A_VAULT_MANAGER), OnlyRequestOwnerOrVaultManager());
+    require(depositRequest.status == RequestStatus.PENDING, RequestNotPending());
 
     // send assets back
-    SafeERC20.safeTransfer(IERC20(asset()), memberAddress, depositRequest.assets);
+    IERC20(asset).safeTransfer(memberAddress, depositRequest.assets - depositRequest.fulfilledAssets);
 
-    depositRequest.finished = true;
+    depositRequest.status = RequestStatus.CANCELED;
     depositRequests[requestId] = depositRequest;
 
     emit DepositRequestCanceled(requestId, msg.sender);
   }
 
-  function fulfillDeposit(uint requestId, uint amount, bool finishedRequest) public only(R_VAULT_MANAGER) whenNotPaused(PAUSE_GLOBAL) {
-    _fulfillDeposit(requestId, amount, finishedRequest);
+  function fulfillDeposit(uint requestId, uint amount) public only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
+    _fulfillDeposit(requestId, amount);
   } 
 
-  // todo: use uniform names for amount/assets in the whole contract
-  function _fulfillDeposit(uint requestId, uint amount, bool finishedRequest) internal {
+  function _fulfillDeposit(uint requestId, uint assets) internal {
     require(requestId < depositRequestNextId && requestId > 0, InvalidRequestId());
     DepositRequestData memory depositRequest = depositRequests[requestId];
-    require(depositRequest.finished == false, AlreadyFinished());
-    require(depositRequest.fulfilledAssets + amount <= depositRequest.assets, RequestedAssetsExceeded());
+    require(depositRequest.status == RequestStatus.PENDING, RequestNotPending());
+    require(depositRequest.fulfilledAssets + assets <= depositRequest.assets, RequestedAssetsExceeded());
 
     address memberAddress = registry.getMemberAddress(depositRequest.memberId);
 
-    uint shares = previewDeposit(amount);
-    _mint(memberAddress, shares);
+    uint shares = convertToShares(assets);
 
-    depositRequest.fulfilledAssets += amount;
-    totalDeposited += amount;
+    depositRequest.fulfilledAssets += assets.toUint96();
+    totalDeposited += assets;
 
-    SafeERC20.safeTransfer(IERC20(asset()), fetch(R_VAULT_MANAGER), amount);
+    IERC20(asset).safeTransfer(fetch(A_VAULT_MANAGER), assets);
 
-    if (finishedRequest) {
-      depositRequest.finished = true;
-      uint unfulfilledAmount = depositRequest.assets - depositRequest.fulfilledAssets;
-      if (unfulfilledAmount > 0) {
-        SafeERC20.safeTransfer(IERC20(asset()), memberAddress, unfulfilledAmount);
-      } 
-    }
+    depositRequest.status = RequestStatus.FULFILLED;
+    uint unfulfilledAssets = depositRequest.assets - depositRequest.fulfilledAssets;
+    if (unfulfilledAssets > 0) {
+      IERC20(asset).safeTransfer(memberAddress, unfulfilledAssets);
+    } 
 
     depositRequests[requestId] = depositRequest;
 
-    emit DepositFulfilled(requestId, depositRequest.memberId, memberAddress, amount);
+    if (depositRequest.lockPeriod > 0) {
+      address locks = fetch(C_LOCKS);
+      // mint shares directly to locks contract
+       _mint(locks, shares);
+      ILocks(locks).lockSharesOnDeposit(shares, depositRequest.memberId, depositRequest.lockPeriod);
+    } else {
+      _mint(memberAddress, shares);
+    }
+
+    emit DepositFulfilled(requestId, depositRequest.memberId, memberAddress, assets, shares);
+    // for erc4626 compatibility
+    emit Deposit(msg.sender, memberAddress, assets, shares);
   }
 
-  // todo: handle controller and owner (controller == owner == msg.sender)
-  function requestRedeem(uint shares, address controller, address owner) external onlyMember whenNotPaused(PAUSE_GLOBAL) returns (uint requestId) {
+  function requestRedeem(uint shares, address controller, address owner) external override(ERC7540, IERC7540) whenNotPaused(PAUSE_VAULT) returns (uint requestId) {
     require(owner == msg.sender, OwnerNotSender());
     require(controller == msg.sender, ControllerNotSender());
     require(shares != 0, ZeroShares());
-    uint memberId = validateMemberGetId(msg.sender);
+    uint memberId = getActiveMemberId(msg.sender);
 
     requestId = redeemRequestNexId++;
 
-    SafeERC20.safeTransferFrom(this, owner, address(this), shares);
+    IERC20(address(this)).safeTransferFrom(owner, address(this), shares);
 
-    redeemRequests[requestId] = RedeemRequestData(shares, 0, uint32(memberId), false);
+    redeemRequests[requestId] = RedeemRequestData({
+      shares: shares.toUint96(),
+      fulfilledShares: 0,
+      memberId: memberId.toUint32(),
+      status: RequestStatus.PENDING
+    });
 
     emit RedeemRequest(controller, owner, requestId, msg.sender, shares);
     return requestId;
   }
 
-  function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external only(R_VAULT_MANAGER) whenNotPaused(PAUSE_GLOBAL) {
+  function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
     uint totalFulfilledAssets = 0;
 
     while(lastFulfilledRedeemRequestId < untilRequestId) {
       lastFulfilledRedeemRequestId++;
       RedeemRequestData memory redeemRequest = redeemRequests[lastFulfilledRedeemRequestId];
 
-      if (redeemRequest.finished) continue;
+      if (redeemRequest.status != RequestStatus.PENDING) continue;
 
-      uint256 assets = previewRedeem(redeemRequest.shares);
+      uint256 assets = convertToAssets(redeemRequest.shares);
       address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
 
-      _withdraw(msg.sender, memberAddress, memberAddress, assets, redeemRequest.shares);
+      _burn(address(this), redeemRequest.shares);
+      IERC20(asset).safeTransfer(memberAddress, assets);
 
       totalFulfilledAssets += assets;
 
-      redeemRequest.fulfilledShares = redeemRequest.shares;
+      redeemRequest.fulfilledShares = redeemRequest.shares; // todo: maybe we want to remove this ?!
+      redeemRequest.status = RequestStatus.FULFILLED;
       redeemRequests[lastFulfilledRedeemRequestId] = redeemRequest;
 
-      emit RequestRedeemed(lastFulfilledRedeemRequestId, redeemRequest.memberId, memberAddress, assets);
+      emit RedeemFulfilled(lastFulfilledRedeemRequestId, redeemRequest.memberId, memberAddress, assets, redeemRequest.shares);
+      // for erc4626 compatibility
+      emit Withdraw(msg.sender, memberAddress, msg.sender, assets, redeemRequest.shares);
     }
 
     require(totalFulfilledAssets <= maxTotalAssets, MaxAssetsExceeded());
 
-    totalDeposited -= totalFulfilledAssets;
+    // redeemed assets calculated with yeild can be larger than initial total deposit
+    if(totalFulfilledAssets > totalDeposited) {
+      totalDeposited = 0;
+    } else {
+      totalDeposited -= totalFulfilledAssets;
+    }
   }
 
-  function cancelRedeemRequest(uint requestId) whenNotPaused(PAUSE_GLOBAL) external {
+  function cancelRedeemRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     RedeemRequestData memory redeemRequest = redeemRequests[requestId];
     address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
-    require(msg.sender == memberAddress || msg.sender == fetch(R_VAULT_MANAGER), OnlyRequestOwnerOrVaultManager());
+    require(msg.sender == memberAddress || msg.sender == fetch(A_VAULT_MANAGER), OnlyRequestOwnerOrVaultManager());
+    require(redeemRequest.status == RequestStatus.PENDING, RequestNotPending());
 
-    redeemRequest.finished = true;
+    redeemRequest.status = RequestStatus.CANCELED;
     redeemRequests[requestId] = redeemRequest;
+
+    // send shares back
+    IERC20(this).safeTransfer(memberAddress, redeemRequest.shares);
 
     emit RedeemRequestCanceled(requestId, msg.sender);
   }
 
-  function redeem(uint256, address, address) public override pure returns (uint256) {
-    revert MustUseRequestRedeem();
-  }
-
   function _convertToShares(uint assets, Math.Rounding rounding) internal view override returns (uint) {
-    return Math.mulDiv(assets, 10 ** decimals(), _getCurrentAssetsPerShare(), rounding);
+    return Math.mulDiv(assets, ASSET_UNIT, _getCurrentAssetsPerShare(), rounding);
   }
 
   function _convertToAssets(uint shares, Math.Rounding rounding) internal view override returns (uint) {
-    return Math.mulDiv(shares, _getCurrentAssetsPerShare(), 10 ** decimals(), rounding);
+    return Math.mulDiv(shares, _getCurrentAssetsPerShare(), ASSET_UNIT, rounding);
   }
 
   function _getCurrentAssetsPerShare() internal view returns (uint) {
-    BaseApyConfig memory baseApy = apyConfigs[activeApyConfig];
+    BaseApyConfig memory baseApy = apyConfig;
     uint timePassed = block.timestamp - baseApy.activeFrom;
-    uint gainPerShare = Math.mulDiv(baseApy.assetsPerShare, baseApy.apy * timePassed, BPS * 365 days);
-    return baseApy.assetsPerShare + gainPerShare;
+    uint gainPerShare = Math.mulDiv(baseApy.startAssetsPerShare, uint(baseApy.apy) * timePassed, BPS * 365 days);
+    return baseApy.startAssetsPerShare + gainPerShare;
   }
 
   function totalAssets() public view override returns (uint256) {
-    return totalDeposited; // todo: + in deposit queue?
+    return totalDeposited;
   }
 }
