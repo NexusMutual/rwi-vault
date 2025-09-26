@@ -3,9 +3,9 @@
 
 pragma solidity ^0.8.20;
 
-import {IERC20} from "./interfaces/IERC20.sol";
-import {IERC20Metadata} from "./interfaces/IERC20Metadata.sol";
-import {IERC20Errors} from "./interfaces/IERC20Errors.sol";
+import {IERC20} from "./external/OpenZeppelin/interfaces/IERC20.sol";
+import {IERC20Metadata} from "./external/OpenZeppelin/interfaces/IERC20Metadata.sol";
+import {IERC20Errors} from "./external/OpenZeppelin/interfaces/IERC20Errors.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface.
@@ -25,27 +25,15 @@ import {IERC20Errors} from "./interfaces/IERC20Errors.sol";
  * conventional and does not conflict with the expectations of ERC-20
  * applications.
  */
-abstract contract ERC20Upgradeable is IERC20, IERC20Metadata, IERC20Errors {
-    /// @custom:storage-location erc7201:openzeppelin.storage.ERC20
-    struct ERC20Storage {
-        mapping(address account => uint256) _balances;
+abstract contract ERC20 is IERC20, IERC20Metadata, IERC20Errors {
+    mapping(address account => uint256) private _balances;
 
-        mapping(address account => mapping(address spender => uint256)) _allowances;
+    mapping(address account => mapping(address spender => uint256)) private _allowances;
 
-        uint256 _totalSupply;
+    uint256 private _totalSupply;
 
-        string _name;
-        string _symbol;
-    }
-
-    // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.ERC20")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant ERC20StorageLocation = 0x52c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace00;
-
-    function _getERC20Storage() private pure returns (ERC20Storage storage $) {
-        assembly {
-            $.slot := ERC20StorageLocation
-        }
-    }
+    string private _name;
+    string private _symbol;
 
     /**
      * @dev Sets the values for {name} and {symbol}.
@@ -53,21 +41,15 @@ abstract contract ERC20Upgradeable is IERC20, IERC20Metadata, IERC20Errors {
      * Both values are immutable: they can only be set once during construction.
      */
     function __ERC20_init(string memory name_, string memory symbol_) internal {
-        __ERC20_init_unchained(name_, symbol_);
-    }
-
-    function __ERC20_init_unchained(string memory name_, string memory symbol_) internal {
-        ERC20Storage storage $ = _getERC20Storage();
-        $._name = name_;
-        $._symbol = symbol_;
+        _name = name_;
+        _symbol = symbol_;
     }
 
     /**
      * @dev Returns the name of the token.
      */
     function name() public view virtual returns (string memory) {
-        ERC20Storage storage $ = _getERC20Storage();
-        return $._name;
+        return _name;
     }
 
     /**
@@ -75,37 +57,17 @@ abstract contract ERC20Upgradeable is IERC20, IERC20Metadata, IERC20Errors {
      * name.
      */
     function symbol() public view virtual returns (string memory) {
-        ERC20Storage storage $ = _getERC20Storage();
-        return $._symbol;
-    }
-
-    /**
-     * @dev Returns the number of decimals used to get its user representation.
-     * For example, if `decimals` equals `2`, a balance of `505` tokens should
-     * be displayed to a user as `5.05` (`505 / 10 ** 2`).
-     *
-     * Tokens usually opt for a value of 18, imitating the relationship between
-     * Ether and Wei. This is the default value returned by this function, unless
-     * it's overridden.
-     *
-     * NOTE: This information is only used for _display_ purposes: it in
-     * no way affects any of the arithmetic of the contract, including
-     * {IERC20-balanceOf} and {IERC20-transfer}.
-     */
-    function decimals() public view virtual returns (uint8) {
-        return 18;
+        return _symbol;
     }
 
     /// @inheritdoc IERC20
     function totalSupply() public view virtual returns (uint256) {
-        ERC20Storage storage $ = _getERC20Storage();
-        return $._totalSupply;
+        return _totalSupply;
     }
 
     /// @inheritdoc IERC20
     function balanceOf(address account) public view virtual returns (uint256) {
-        ERC20Storage storage $ = _getERC20Storage();
-        return $._balances[account];
+        return _balances[account];
     }
 
     /**
@@ -124,8 +86,7 @@ abstract contract ERC20Upgradeable is IERC20, IERC20Metadata, IERC20Errors {
 
     /// @inheritdoc IERC20
     function allowance(address owner, address spender) public view virtual returns (uint256) {
-        ERC20Storage storage $ = _getERC20Storage();
-        return $._allowances[owner][spender];
+        return _allowances[owner][spender];
     }
 
     /**
@@ -195,30 +156,29 @@ abstract contract ERC20Upgradeable is IERC20, IERC20Metadata, IERC20Errors {
      * Emits a {Transfer} event.
      */
     function _update(address from, address to, uint256 value) internal virtual {
-        ERC20Storage storage $ = _getERC20Storage();
         if (from == address(0)) {
             // Overflow check required: The rest of the code assumes that totalSupply never overflows
-            $._totalSupply += value;
+            _totalSupply += value;
         } else {
-            uint256 fromBalance = $._balances[from];
+            uint256 fromBalance = _balances[from];
             if (fromBalance < value) {
                 revert ERC20InsufficientBalance(from, fromBalance, value);
             }
             unchecked {
                 // Overflow not possible: value <= fromBalance <= totalSupply.
-                $._balances[from] = fromBalance - value;
+                _balances[from] = fromBalance - value;
             }
         }
 
         if (to == address(0)) {
             unchecked {
                 // Overflow not possible: value <= totalSupply or value <= fromBalance <= totalSupply.
-                $._totalSupply -= value;
+                _totalSupply -= value;
             }
         } else {
             unchecked {
                 // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
-                $._balances[to] += value;
+                _balances[to] += value;
             }
         }
 
@@ -293,14 +253,13 @@ abstract contract ERC20Upgradeable is IERC20, IERC20Metadata, IERC20Errors {
      * Requirements are the same as {_approve}.
      */
     function _approve(address owner, address spender, uint256 value, bool emitEvent) internal virtual {
-        ERC20Storage storage $ = _getERC20Storage();
         if (owner == address(0)) {
             revert ERC20InvalidApprover(address(0));
         }
         if (spender == address(0)) {
             revert ERC20InvalidSpender(address(0));
         }
-        $._allowances[owner][spender] = value;
+        _allowances[owner][spender] = value;
         if (emitEvent) {
             emit Approval(owner, spender, value);
         }

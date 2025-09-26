@@ -4,16 +4,14 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract ERC20UsdcMock is ERC20 {
+contract ERC20Mock is ERC20 {
 
   string internal _name;
   string internal _symbol;
   uint8 internal _decimals;
 
-  constructor() ERC20("", "") {
-    _name = "ERC20 USDC Mock";
-    _symbol = "USDCMOCK";
-    _decimals = 8;
+  constructor(string memory name, string memory symbol, uint8 __decimals) ERC20(name, symbol) {
+    _decimals = __decimals;
   }
 
   function setMetadata(
