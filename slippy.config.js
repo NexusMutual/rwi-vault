@@ -21,6 +21,6 @@ export default {
     'no-duplicate-imports': 'error',
     'no-uninitialized-immutable-references': 'error',
     'no-unused-vars': 'error',
-    'sort-imports': 'error', // disabled for now
+    'sort-imports': 'warn',
   },
 };
