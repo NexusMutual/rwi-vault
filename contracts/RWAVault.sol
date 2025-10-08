@@ -286,6 +286,6 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   }
 
   function totalAssets() public view override returns (uint256) {
-    return totalDeposited;
+    return convertToAssets(totalSupply());
   }
 }
