@@ -18,8 +18,8 @@ contract Locks is ILocks, RegistryAware {
 
   address immutable public vault;
 
-  constructor(address _registry) RegistryAware(_registry) { 
-    vault = fetch(C_VAULT);
+  constructor(address _registry, address _vault) RegistryAware(_registry) { 
+    vault = _vault;
   }
 
   function getMemberLock(uint memberId, uint lockId) external view returns (Lock memory) {
@@ -45,7 +45,9 @@ contract Locks is ILocks, RegistryAware {
     emit SharesLocked(memberId, memberLocks[memberId].length - 1, shares, shares, period);
   }
 
-  function lockSharesOnDeposit(uint shares, uint memberId, uint period) external only(C_VAULT) {
+  function lockSharesOnDeposit(uint shares, uint memberId, uint period) external only(C_VAULT) whenNotPaused(PAUSE_LOCKS) {
+    require(period >= MIN_LOCK_PERIOD && period <= MAX_LOCK_PERIOD, InvalidPeriod());
+
     memberLocks[memberId].push(Lock({
       shares: shares.toUint96(),
       startTime: block.timestamp.toUint32(),
@@ -60,7 +62,9 @@ contract Locks is ILocks, RegistryAware {
     require(lockId < memberLocks[memberId].length, InvalidLockId());
     require(period >= MIN_LOCK_PERIOD && period <= MAX_LOCK_PERIOD, InvalidPeriod());
     
-    IERC20(vault).safeTransferFrom(msg.sender, address(this), topUpShares);
+    if (topUpShares > 0) {
+      IERC20(vault).safeTransferFrom(msg.sender, address(this), topUpShares);
+    }
 
     Lock memory lock = memberLocks[memberId][lockId];
     require(block.timestamp < lock.startTime + lock.period, LockExpired());
