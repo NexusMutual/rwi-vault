@@ -21,7 +21,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   uint private totalDeposited;
 
   uint private depositRequestNextId;
-  uint private redeemRequestNexId;
+  uint private redeemRequestNextId;
   uint private lastFulfilledRedeemRequestId;
 
   mapping(uint depositRequestId => DepositRequestData) private depositRequests;
@@ -43,7 +43,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       proposedActivationTime: 0
     });
 
-    redeemRequestNexId = 1;
+    redeemRequestNextId = 1;
     depositRequestNextId = 1;
   }
 
@@ -121,9 +121,9 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     require(controller == msg.sender, ControllerNotSender());
     uint memberId = getActiveMemberId(msg.sender);
 
-    requestId = depositRequestNextId++;
-
     IERC20(asset).safeTransferFrom(owner, address(this), assets);
+
+    requestId = depositRequestNextId++;
 
     depositRequests[requestId] = DepositRequestData({
       assets: assets.toUint96(),
@@ -148,11 +148,11 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     require(msg.sender == memberAddress|| msg.sender == fetch(A_VAULT_MANAGER), OnlyRequestOwnerOrVaultManager());
     require(depositRequest.status == RequestStatus.PENDING, RequestNotPending());
 
-    // send assets back
-    IERC20(asset).safeTransfer(memberAddress, depositRequest.assets - depositRequest.fulfilledAssets);
-
     depositRequest.status = RequestStatus.CANCELED;
     depositRequests[requestId] = depositRequest;
+
+    // send assets back
+    IERC20(asset).safeTransfer(memberAddress, depositRequest.assets - depositRequest.fulfilledAssets);
 
     emit DepositRequestCanceled(requestId, msg.sender);
   }
@@ -174,8 +174,6 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     depositRequest.fulfilledAssets += assets.toUint96();
     totalDeposited += assets;
 
-    IERC20(asset).safeTransfer(fetch(A_VAULT_MANAGER), assets);
-
     depositRequest.status = RequestStatus.FULFILLED;
     uint unfulfilledAssets = depositRequest.assets - depositRequest.fulfilledAssets;
     if (unfulfilledAssets > 0) {
@@ -193,6 +191,9 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       _mint(memberAddress, shares);
     }
 
+    // send assets to the vault manager
+    IERC20(asset).safeTransfer(fetch(A_VAULT_MANAGER), assets);
+
     emit DepositFulfilled(requestId, depositRequest.memberId, memberAddress, assets, shares);
     // for erc4626 compatibility
     emit Deposit(msg.sender, memberAddress, assets, shares);
@@ -204,9 +205,9 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     require(shares != 0, ZeroShares());
     uint memberId = getActiveMemberId(msg.sender);
 
-    requestId = redeemRequestNexId++;
-
     IERC20(address(this)).safeTransferFrom(owner, address(this), shares);
+
+    requestId = redeemRequestNextId++;
 
     redeemRequests[requestId] = RedeemRequestData({
       shares: shares.toUint96(),
@@ -220,6 +221,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   }
 
   function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
+    require(untilRequestId < redeemRequestNextId, UntilRequestIdTooLarge());
     uint totalFulfilledAssets = 0;
 
     while(lastFulfilledRedeemRequestId < untilRequestId) {
@@ -232,13 +234,14 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
 
       _burn(address(this), redeemRequest.shares);
-      IERC20(asset).safeTransfer(memberAddress, assets);
 
       totalFulfilledAssets += assets;
 
       redeemRequest.fulfilledShares = redeemRequest.shares; // todo: maybe we want to remove this ?!
       redeemRequest.status = RequestStatus.FULFILLED;
       redeemRequests[lastFulfilledRedeemRequestId] = redeemRequest;
+
+      IERC20(asset).safeTransferFrom(fetch(A_VAULT_MANAGER), memberAddress, assets);
 
       emit RedeemFulfilled(lastFulfilledRedeemRequestId, redeemRequest.memberId, memberAddress, assets, redeemRequest.shares);
       // for erc4626 compatibility
@@ -270,6 +273,18 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     emit RedeemRequestCanceled(requestId, msg.sender);
   }
 
+  function pendingDepositRequest(uint requestId, address) external view override(ERC7540, IERC7540) returns (uint assets) {
+    DepositRequestData memory request = depositRequests[requestId];
+    if (request.status != RequestStatus.PENDING) return 0;
+    return request.assets;
+  }
+
+  function pendingRedeemRequest(uint requestId, address) external view override(ERC7540, IERC7540) returns (uint shares) {
+    RedeemRequestData memory request = redeemRequests[requestId];
+    if (request.status != RequestStatus.PENDING) return 0;
+    return request.shares;
+  }
+
   function _convertToShares(uint assets, Math.Rounding rounding) internal view override returns (uint) {
     return Math.mulDiv(assets, ASSET_UNIT, _getCurrentAssetsPerShare(), rounding);
   }
@@ -286,6 +301,6 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   }
 
   function totalAssets() public view override returns (uint256) {
-    return totalDeposited;
+    return convertToAssets(totalSupply());
   }
 }

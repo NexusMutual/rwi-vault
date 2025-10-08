@@ -50,7 +50,7 @@ contract Registry is IRegistry {
 
   function setPauseConfig(uint newPauseConfig) external onlyEmergencyAdmin {
     pauseConfig = newPauseConfig;
-    emit PauseConfigConfirmed(newPauseConfig, msg.sender);
+    emit PauseConfigSet(newPauseConfig, msg.sender);
   }
 
   function getPauseConfig() external view returns (uint config) {
@@ -207,6 +207,7 @@ contract Registry is IRegistry {
   function removeContract(uint index) external onlyGovernor {
     Contract memory _contract = contracts[index];
     require(_contract.addr != address(0), ContractDoesNotExist());
+    require(index != C_GOVERNOR, InvalidContractIndex());
 
     contractIndexes[_contract.addr] = 0;
     delete contracts[index];

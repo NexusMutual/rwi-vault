@@ -73,4 +73,5 @@ interface IRWAVault is IERC7540 {
   error NoProposal();
   error ProposalActivationTimeTooSoon();
   error RequestNotPending();
+  error UntilRequestIdTooLarge();
 }
