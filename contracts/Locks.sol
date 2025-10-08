@@ -45,7 +45,9 @@ contract Locks is ILocks, RegistryAware {
     emit SharesLocked(memberId, memberLocks[memberId].length - 1, shares, shares, period);
   }
 
-  function lockSharesOnDeposit(uint shares, uint memberId, uint period) external only(C_VAULT) {
+  function lockSharesOnDeposit(uint shares, uint memberId, uint period) external only(C_VAULT) whenNotPaused(PAUSE_LOCKS) {
+    require(period >= MIN_LOCK_PERIOD && period <= MAX_LOCK_PERIOD, InvalidPeriod());
+
     memberLocks[memberId].push(Lock({
       shares: shares.toUint96(),
       startTime: block.timestamp.toUint32(),
