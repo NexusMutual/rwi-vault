@@ -58,8 +58,7 @@ interface IRegistry {
   event ContractRemoved(uint indexed index, address indexed contractAddress, bool isProxy);
 
   event EmergencyAdminSet(address indexed emergencyAdmin, bool enabled);
-  event PauseConfigProposed(uint config, address indexed proposer);
-  event PauseConfigConfirmed(uint config, address indexed confirmer);
+  event PauseConfigSet(uint config, address indexed confirmer);
 
   error ContractAlreadyExists();
   error InvalidContractIndex();
