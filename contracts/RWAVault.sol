@@ -273,6 +273,18 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     emit RedeemRequestCanceled(requestId, msg.sender);
   }
 
+  function pendingDepositRequest(uint requestId, address) external view override(ERC7540, IERC7540) returns (uint assets) {
+    DepositRequestData memory request = depositRequests[requestId];
+    if (request.status != RequestStatus.PENDING) return 0;
+    return request.assets;
+  }
+
+  function pendingRedeemRequest(uint requestId, address) external view override(ERC7540, IERC7540) returns (uint shares) {
+    RedeemRequestData memory request = redeemRequests[requestId];
+    if (request.status != RequestStatus.PENDING) return 0;
+    return request.shares;
+  }
+
   function _convertToShares(uint assets, Math.Rounding rounding) internal view override returns (uint) {
     return Math.mulDiv(assets, ASSET_UNIT, _getCurrentAssetsPerShare(), rounding);
   }
