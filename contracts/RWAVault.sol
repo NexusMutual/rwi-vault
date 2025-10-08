@@ -220,6 +220,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   }
 
   function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
+    require(untilRequestId < redeemRequestNextId, UntilRequestIdTooLarge());
     uint totalFulfilledAssets = 0;
 
     while(lastFulfilledRedeemRequestId < untilRequestId) {
