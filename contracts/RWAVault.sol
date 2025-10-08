@@ -232,7 +232,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
 
       _burn(address(this), redeemRequest.shares);
-      IERC20(asset).safeTransfer(memberAddress, assets);
+      IERC20(asset).safeTransferFrom(fetch(A_VAULT_MANAGER), memberAddress, assets);
 
       totalFulfilledAssets += assets;
 
