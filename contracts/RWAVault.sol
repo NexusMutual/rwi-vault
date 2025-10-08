@@ -21,7 +21,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   uint private totalDeposited;
 
   uint private depositRequestNextId;
-  uint private redeemRequestNexId;
+  uint private redeemRequestNextId;
   uint private lastFulfilledRedeemRequestId;
 
   mapping(uint depositRequestId => DepositRequestData) private depositRequests;
@@ -43,7 +43,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       proposedActivationTime: 0
     });
 
-    redeemRequestNexId = 1;
+    redeemRequestNextId = 1;
     depositRequestNextId = 1;
   }
 
@@ -204,7 +204,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     require(shares != 0, ZeroShares());
     uint memberId = getActiveMemberId(msg.sender);
 
-    requestId = redeemRequestNexId++;
+    requestId = redeemRequestNextId++;
 
     IERC20(address(this)).safeTransferFrom(owner, address(this), shares);
 
