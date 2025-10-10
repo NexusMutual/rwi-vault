@@ -224,6 +224,8 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     require(untilRequestId < redeemRequestNextId, UntilRequestIdTooLarge());
     uint totalFulfilledAssets = 0;
 
+    address vaultManager = fetch(A_VAULT_MANAGER);
+
     while(lastFulfilledRedeemRequestId < untilRequestId) {
       lastFulfilledRedeemRequestId++;
       RedeemRequestData memory redeemRequest = redeemRequests[lastFulfilledRedeemRequestId];
@@ -237,11 +239,11 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
 
       totalFulfilledAssets += assets;
 
-      redeemRequest.fulfilledShares = redeemRequest.shares; // todo: maybe we want to remove this ?!
+      redeemRequest.fulfilledShares = redeemRequest.shares;
       redeemRequest.status = RequestStatus.FULFILLED;
       redeemRequests[lastFulfilledRedeemRequestId] = redeemRequest;
 
-      IERC20(asset).safeTransferFrom(fetch(A_VAULT_MANAGER), memberAddress, assets);
+      IERC20(asset).safeTransferFrom(vaultManager, memberAddress, assets);
 
       emit RedeemFulfilled(lastFulfilledRedeemRequestId, redeemRequest.memberId, memberAddress, assets, redeemRequest.shares);
       // for erc4626 compatibility
