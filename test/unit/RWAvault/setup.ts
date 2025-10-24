@@ -23,7 +23,7 @@ export async function setup(ethers: HardhatEthers) {
   const rwaVault = await ethers.deployContract('RWAVault', [await registry.getAddress(), await usdcMock.getAddress(), ASSET_DECIMALS]);
   await registry.connect(accounts.governor).addContract(ContractIndexes.C_VAULT, await rwaVault.getAddress(), false);
 
-  const locks = await ethers.deployContract('Locks', [await registry.getAddress()]);
+  const locks = await ethers.deployContract('Locks', [await registry.getAddress(), await rwaVault.getAddress()]);
   await registry.connect(accounts.governor).addContract(ContractIndexes.C_LOCKS, await locks.getAddress(), false);
 
   // register members

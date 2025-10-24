@@ -87,7 +87,8 @@ describe('redeem', function () {
     const userShares3 = await _deposit(user3, depositAmount3);
     await _requestRedeem(user3, userShares3);
 
-    await usdcMock.mint(await rwaVault.getAddress(), parseUsdc("10000"));
+    await usdcMock.mint(vaultManager, parseUsdc("10000"));
+    await usdcMock.connect(vaultManager).approve(await rwaVault.getAddress(), parseUsdc("10000"));
     await rwaVault.connect(vaultManager).fulfillRedeems(2, parseUsdc("10000"));
 
     expect(await rwaVault.balanceOf(await rwaVault.getAddress())).to.equal(userShares3);
@@ -107,7 +108,8 @@ describe('redeem', function () {
 
     const expectTotalAssets = await rwaVault.convertToAssets(userShares);
 
-    await usdcMock.mint(await rwaVault.getAddress(), parseUsdc("10000"));
+    await usdcMock.mint(vaultManager, parseUsdc("10000"));
+    await usdcMock.connect(vaultManager).approve(await rwaVault.getAddress(), parseUsdc("10000"));
     await expect(rwaVault.connect(vaultManager).fulfillRedeems(1, expectTotalAssets - 1n))
             .to.be.revertedWithCustomError(rwaVault, 'MaxAssetsExceeded');
   });
@@ -119,10 +121,12 @@ describe('redeem', function () {
     const user = members[0];
     await _requestRedeem(user, userShares);
 
+    await usdcMock.mint(vaultManager, parseUsdc("10000"));
+    await usdcMock.connect(vaultManager).approve(await rwaVault.getAddress(), parseUsdc("10000"));
+
     const userAssetsBefore = await usdcMock.balanceOf(user.address);
+    await networkHelpers.mine(); // mine 1 block to make sure the totalAssets is updated
     const totalAssetsBefore = await rwaVault.totalAssets();
-  
-    await usdcMock.mint(await rwaVault.getAddress(), parseUsdc("10000"));
     await rwaVault.connect(vaultManager).fulfillRedeems(1, parseUsdc("10000"));
 
     const totalAssetsAfter = await rwaVault.totalAssets();
@@ -148,7 +152,8 @@ describe('redeem', function () {
     await rwaVault.connect(user2).cancelRedeemRequest(2);
     
     const expectTotalAssets = await rwaVault.convertToAssets(userShares1 + userShares3);
-    await usdcMock.mint(await rwaVault.getAddress(),expectTotalAssets)
+    await usdcMock.mint(vaultManager, expectTotalAssets)
+    await usdcMock.connect(vaultManager).approve(await rwaVault.getAddress(), expectTotalAssets);
     await rwaVault.connect(vaultManager).fulfillRedeems(3, expectTotalAssets);
 
     const [request1, request2, request3] = await rwaVault.getRedeemRequests([1,2,3]);
