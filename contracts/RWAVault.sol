@@ -18,11 +18,10 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   uint constant public MIN_APY_PROPOSAL_TIME = 90 days;
 
   uint public assetCap;
-  uint private totalDeposited;
 
   uint private depositRequestNextId;
   uint private redeemRequestNextId;
-  uint private lastFulfilledRedeemRequestId;
+  uint private redeemRequestFulfillId;
 
   mapping(uint depositRequestId => DepositRequestData) private depositRequests;
   mapping(uint redeemRequestId => RedeemRequestData) private redeemRequests;
@@ -45,6 +44,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
 
     redeemRequestNextId = 1;
     depositRequestNextId = 1;
+    redeemRequestFulfillId = 1;
   }
 
   function decimals() external view override returns (uint8) {
@@ -135,7 +135,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
 
     emit DepositRequest(controller, owner, requestId, msg.sender, assets);
     
-    if (totalDeposited + assets <= assetCap) {
+    if (totalAssets() + assets <= assetCap) {
       _fulfillDeposit(requestId, assets);
     }
     
@@ -172,7 +172,6 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     uint shares = convertToShares(assets);
 
     depositRequest.fulfilledAssets += assets.toUint96();
-    totalDeposited += assets;
 
     depositRequest.status = RequestStatus.FULFILLED;
     uint unfulfilledAssets = depositRequest.assets - depositRequest.fulfilledAssets;
@@ -220,44 +219,45 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     return requestId;
   }
 
-  function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
-    require(untilRequestId < redeemRequestNextId, UntilRequestIdTooLarge());
-    uint totalFulfilledAssets = 0;
+  function fulfillRedeems(uint maxRequestId, uint maxTotalAssets) external only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
+    require(maxRequestId < redeemRequestNextId, MaxRequestIdTooLarge());
 
     address vaultManager = fetch(A_VAULT_MANAGER);
-
-    while(lastFulfilledRedeemRequestId < untilRequestId) {
-      lastFulfilledRedeemRequestId++;
-      RedeemRequestData memory redeemRequest = redeemRequests[lastFulfilledRedeemRequestId];
+    uint assetsLeft = maxTotalAssets;
+    uint requestId;
+    for(requestId = redeemRequestFulfillId; requestId <= maxRequestId; requestId++) {
+      RedeemRequestData memory redeemRequest = redeemRequests[requestId];
 
       if (redeemRequest.status != RequestStatus.PENDING) continue;
 
-      uint256 assets = convertToAssets(redeemRequest.shares);
       address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
+      uint shares = redeemRequest.shares - redeemRequest.fulfilledShares;
+      uint assets = convertToAssets(shares);
 
-      _burn(address(this), redeemRequest.shares);
+      if (assets > assetsLeft) {
+        // partially fulfill request and keep pending status
+        shares = convertToShares(assetsLeft);
+        assets = assetsLeft;
+      } else {
+        redeemRequest.status = RequestStatus.FULFILLED;
+      }
 
-      totalFulfilledAssets += assets;
+      redeemRequest.fulfilledShares += shares.toUint96();
+      redeemRequests[requestId] = redeemRequest;
 
-      redeemRequest.fulfilledShares = redeemRequest.shares;
-      redeemRequest.status = RequestStatus.FULFILLED;
-      redeemRequests[lastFulfilledRedeemRequestId] = redeemRequest;
+      assetsLeft -= assets;
 
+      _burn(address(this), shares);
       IERC20(asset).safeTransferFrom(vaultManager, memberAddress, assets);
 
-      emit RedeemFulfilled(lastFulfilledRedeemRequestId, redeemRequest.memberId, memberAddress, assets, redeemRequest.shares);
+      emit RedeemFulfilled(requestId, redeemRequest.memberId, memberAddress, assets, shares);
       // for erc4626 compatibility
-      emit Withdraw(msg.sender, memberAddress, msg.sender, assets, redeemRequest.shares);
+      emit Withdraw(msg.sender, memberAddress, msg.sender, assets, shares);
+
+      if (assetsLeft == 0) break;
     }
 
-    require(totalFulfilledAssets <= maxTotalAssets, MaxAssetsExceeded());
-
-    // redeemed assets calculated with yeild can be larger than initial total deposit
-    if(totalFulfilledAssets > totalDeposited) {
-      totalDeposited = 0;
-    } else {
-      totalDeposited -= totalFulfilledAssets;
-    }
+    redeemRequestFulfillId = requestId;
   }
 
   function cancelRedeemRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
@@ -270,7 +270,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     redeemRequests[requestId] = redeemRequest;
 
     // send shares back
-    IERC20(this).safeTransfer(memberAddress, redeemRequest.shares);
+    IERC20(this).safeTransfer(memberAddress, redeemRequest.shares - redeemRequest.fulfilledShares);
 
     emit RedeemRequestCanceled(requestId, msg.sender);
   }
@@ -302,7 +302,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     return baseApy.startAssetsPerShare + gainPerShare;
   }
 
-  function totalAssets() public view override returns (uint256) {
+  function totalAssets() public view override returns (uint) {
     return convertToAssets(totalSupply());
   }
 }

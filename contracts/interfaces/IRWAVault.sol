@@ -44,7 +44,7 @@ interface IRWAVault is IERC7540 {
   function requestDepositAndLock(uint assets, address controller, address owner, uint lockPeriod) external returns(uint requestId);
   function cancelDepositRequest(uint requestId) external;
   function fulfillDeposit(uint requestId, uint amount) external;
-  function fulfillRedeems(uint untilRequestId, uint maxTotalAssets) external;
+  function fulfillRedeems(uint maxRequestId, uint maxTotalAssets) external;
   function cancelRedeemRequest(uint requestId) external;
 
 
@@ -73,5 +73,5 @@ interface IRWAVault is IERC7540 {
   error NoProposal();
   error ProposalActivationTimeTooSoon();
   error RequestNotPending();
-  error UntilRequestIdTooLarge();
+  error MaxRequestIdTooLarge();
 }
