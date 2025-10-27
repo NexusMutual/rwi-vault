@@ -21,7 +21,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
 
   uint private depositRequestNextId;
   uint private redeemRequestNextId;
-  uint private redeemRequestFulfillId;
+  uint private redeemRequestNextFulfillId;
 
   mapping(uint depositRequestId => DepositRequestData) private depositRequests;
   mapping(uint redeemRequestId => RedeemRequestData) private redeemRequests;
@@ -44,7 +44,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
 
     redeemRequestNextId = 1;
     depositRequestNextId = 1;
-    redeemRequestFulfillId = 1;
+    redeemRequestNextFulfillId = 1;
   }
 
   function decimals() external view override returns (uint8) {
@@ -225,7 +225,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     address vaultManager = fetch(A_VAULT_MANAGER);
     uint assetsLeft = maxTotalAssets;
     uint requestId;
-    for(requestId = redeemRequestFulfillId; requestId <= maxRequestId; requestId++) {
+    for(requestId = redeemRequestNextFulfillId; requestId <= maxRequestId; requestId++) {
       RedeemRequestData memory redeemRequest = redeemRequests[requestId];
 
       if (redeemRequest.status != RequestStatus.PENDING) continue;
@@ -252,12 +252,13 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
 
       emit RedeemFulfilled(requestId, redeemRequest.memberId, memberAddress, assets, shares);
       // for erc4626 compatibility
-      emit Withdraw(msg.sender, memberAddress, msg.sender, assets, shares);
+      emit Withdraw(msg.sender, memberAddress, memberAddress, assets, shares);
 
+      // break early to not update the requestId on partial fulfillment
       if (assetsLeft == 0) break;
     }
 
-    redeemRequestFulfillId = requestId;
+    redeemRequestNextFulfillId = requestId;
   }
 
   function cancelRedeemRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
