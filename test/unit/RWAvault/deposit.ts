@@ -26,7 +26,7 @@ describe('deposit', function () {
   });
 
   it('deposit request is fulfilled automatically if asset cap is not reached', async function () {
-    const { accounts: {members, vaultManager}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {members, vaultOperator}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
@@ -36,17 +36,17 @@ describe('deposit', function () {
 
     expect(await rwaVault.balanceOf(user.address)).to.equal(expectedShares);
 
-    // assets should be transferred to the vault manager directly
-    expect(await usdcMock.balanceOf(vaultManager.address)).to.equal(depositAmount);
+    // assets should be transferred to the vault operator directly
+    expect(await usdcMock.balanceOf(vaultOperator.address)).to.equal(depositAmount);
     expect(await usdcMock.balanceOf(await rwaVault.getAddress())).to.equal(0);
   });
 
   it('deposit request goes to the queue if asset cap is reached', async function () {
-    const { accounts: {members, vaultManager}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {members, vaultOperator}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
-    await rwaVault.connect(vaultManager).setAssetCap(parseUsdc("100"));
+    await rwaVault.connect(vaultOperator).setAssetCap(parseUsdc("100"));
 
     await usdcMock.connect(user).approve(await rwaVault.getAddress(), depositAmount);
     await rwaVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
@@ -59,22 +59,22 @@ describe('deposit', function () {
     expect(request.status).to.equal(RequestStatus.PENDING);
   });
 
-  it('vault manager can fulfill the request', async function () {
-    const { accounts: {members, vaultManager}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
+  it('vault operator can fulfill the request', async function () {
+    const { accounts: {members, vaultOperator}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
-    await rwaVault.connect(vaultManager).setAssetCap(parseUsdc("100"));
+    await rwaVault.connect(vaultOperator).setAssetCap(parseUsdc("100"));
 
     await usdcMock.connect(user).approve(await rwaVault.getAddress(), depositAmount);
     await rwaVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
 
-    await rwaVault.connect(vaultManager).fulfillDeposit(1, depositAmount);
+    await rwaVault.connect(vaultOperator).fulfillDeposit(1, depositAmount);
     const expectedShares = await rwaVault.convertToShares(depositAmount);
 
     expect(await rwaVault.balanceOf(user.address)).to.equal(expectedShares);
 
-    expect(await usdcMock.balanceOf(vaultManager.address)).to.equal(depositAmount);
+    expect(await usdcMock.balanceOf(vaultOperator.address)).to.equal(depositAmount);
     expect(await usdcMock.balanceOf(await rwaVault.getAddress())).to.equal(0);
 
     const [request] = await rwaVault.getDepositRequests([1]);
@@ -83,11 +83,11 @@ describe('deposit', function () {
   });
 
   it('vault manage can partially fulfill the request', async function () {
-    const { accounts: {members, vaultManager}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {members, vaultOperator}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
-    await rwaVault.connect(vaultManager).setAssetCap(parseUsdc("100"));
+    await rwaVault.connect(vaultOperator).setAssetCap(parseUsdc("100"));
 
     await usdcMock.connect(user).approve(await rwaVault.getAddress(), depositAmount);
     await rwaVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
@@ -95,12 +95,12 @@ describe('deposit', function () {
     const userBalanceBefore = await usdcMock.balanceOf(user.address);
     
     const partialAmount = parseUsdc("300");
-    await rwaVault.connect(vaultManager).fulfillDeposit(1, partialAmount);
+    await rwaVault.connect(vaultOperator).fulfillDeposit(1, partialAmount);
     const expectedShares = await rwaVault.convertToShares(partialAmount);
 
     expect(await rwaVault.balanceOf(user.address)).to.equal(expectedShares);
 
-    expect(await usdcMock.balanceOf(vaultManager.address)).to.equal(partialAmount);
+    expect(await usdcMock.balanceOf(vaultOperator.address)).to.equal(partialAmount);
     expect(await usdcMock.balanceOf(await rwaVault.getAddress())).to.equal(0);
     const userBalanceAfter = await usdcMock.balanceOf(user.address);
     expect(userBalanceAfter - userBalanceBefore).to.equal(depositAmount - partialAmount);
@@ -110,20 +110,20 @@ describe('deposit', function () {
     expect(requestAfterFirst.status).to.equal(RequestStatus.FULFILLED);
   });
 
-  it('user or vault manager can cancel the request', async function () {
-    const { accounts: {members, vaultManager}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
+  it('user or vault operator can cancel the request', async function () {
+    const { accounts: {members, vaultOperator}, contracts: {rwaVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
-    await rwaVault.connect(vaultManager).setAssetCap(parseUsdc("100"));
+    await rwaVault.connect(vaultOperator).setAssetCap(parseUsdc("100"));
 
     await usdcMock.connect(user).approve(await rwaVault.getAddress(), depositAmount);
     await rwaVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
 
-    await expect(rwaVault.connect(members[1]).cancelDepositRequest(1)).to.be.revertedWithCustomError(rwaVault, 'OnlyRequestOwnerOrVaultManager');
+    await expect(rwaVault.connect(members[1]).cancelDepositRequest(1)).to.be.revertedWithCustomError(rwaVault, 'OnlyRequestOwnerOrVaultOperator');
 
-    // vault manager should also be able to cancel the request
-    await expect(rwaVault.connect(vaultManager).cancelDepositRequest.staticCall(1)).to.not.be.revert(ethers);
+    // vault operator should also be able to cancel the request
+    await expect(rwaVault.connect(vaultOperator).cancelDepositRequest.staticCall(1)).to.not.be.revert(ethers);
 
     await rwaVault.connect(user).cancelDepositRequest(1);
     
@@ -157,17 +157,17 @@ describe('deposit', function () {
   });
 
   it('user should be able to request locking shares on deposit when it goes to the queue', async function () {
-    const { accounts: {members, vaultManager}, contracts: {rwaVault, registry, locks, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {members, vaultOperator}, contracts: {rwaVault, registry, locks, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
     const lockPeriod = duration.days(30);
     
-    await rwaVault.connect(vaultManager).setAssetCap(parseUsdc("100"));
+    await rwaVault.connect(vaultOperator).setAssetCap(parseUsdc("100"));
 
     await usdcMock.connect(user).approve(await rwaVault.getAddress(), depositAmount);
     await rwaVault.connect(user).requestDepositAndLock(depositAmount, user.address, user.address, lockPeriod);
 
-    await rwaVault.connect(vaultManager).fulfillDeposit(1, depositAmount); 
+    await rwaVault.connect(vaultOperator).fulfillDeposit(1, depositAmount); 
     const expectedShares = await rwaVault.convertToShares.staticCall(depositAmount);
     
     const [request] = await rwaVault.getDepositRequests([1]);
@@ -187,38 +187,38 @@ describe('deposit', function () {
 
   describe('deposit fulfillment reverts', async function () {
     let user : any;
-    let vaultManager : any;
+    let vaultOperator : any;
     let rwaVault : RWAVault;
     let registry : Registry;
     const depositAmount = parseUsdc("1000");
 
     beforeEach(async function () {
       const { accounts, contracts } = await networkHelpers.loadFixture(setupFixture);
-      ({members: [user], vaultManager} = accounts);
+      ({members: [user], vaultOperator} = accounts);
       ({rwaVault, registry} = contracts);
       
-      await rwaVault.connect(vaultManager).setAssetCap(parseUsdc("100"));
+      await rwaVault.connect(vaultOperator).setAssetCap(parseUsdc("100"));
       await contracts.usdcMock.connect(user).approve(await rwaVault.getAddress(), depositAmount);
       await rwaVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
     });
 
-    it('only vault manager can fulfill the request', async function () {
+    it('only vault operator can fulfill the request', async function () {
       await expect(rwaVault.connect(user).fulfillDeposit(1, depositAmount)).to.be.revertedWithCustomError(registry, 'ContractDoesNotExist');
     });
 
     it('request is already fulfilled', async function () {
-      await rwaVault.connect(vaultManager).fulfillDeposit(1, depositAmount);
-      await expect(rwaVault.connect(vaultManager).fulfillDeposit(1, depositAmount))
+      await rwaVault.connect(vaultOperator).fulfillDeposit(1, depositAmount);
+      await expect(rwaVault.connect(vaultOperator).fulfillDeposit(1, depositAmount))
         .to.be.revertedWithCustomError(rwaVault, 'RequestNotPending');
     });
 
     it('requested assets exceeded', async function () {
-      await expect(rwaVault.connect(vaultManager).fulfillDeposit(1, depositAmount + 1n))
+      await expect(rwaVault.connect(vaultOperator).fulfillDeposit(1, depositAmount + 1n))
       .to.be.revertedWithCustomError(rwaVault, 'RequestedAssetsExceeded');
     });
 
     it('invalid request id', async function () {
-      await expect(rwaVault.connect(vaultManager).fulfillDeposit(2, depositAmount))
+      await expect(rwaVault.connect(vaultOperator).fulfillDeposit(2, depositAmount))
       .to.be.revertedWithCustomError(rwaVault, 'InvalidRequestId');
     });
 

@@ -16,10 +16,10 @@ describe('RWAVault', function () {
     await expect(rwaVault.initialize("RWA", "RWA", 0)).to.be.revertedWithCustomError(registry, 'ContractDoesNotExist');
   });
 
-  it('vault manager can change asset cap', async function () {
-    const { accounts: {vaultManager}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
+  it('vault operator can change asset cap', async function () {
+    const { accounts: {vaultOperator}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
 
-    await rwaVault.connect(vaultManager).setAssetCap(1000);
+    await rwaVault.connect(vaultOperator).setAssetCap(1000);
 
     expect(await rwaVault.assetCap()).to.equal(1000);
   });

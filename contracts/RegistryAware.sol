@@ -9,8 +9,8 @@ uint constant C_REGISTRY             = 1 << 0;  // 1
 uint constant C_GOVERNOR             = 1 << 1;  // 2
 uint constant C_VAULT                = 1 << 2;  // 4
 uint constant C_LOCKS                = 1 << 3;  // 8
-uint constant A_VAULT_MANAGER        = 1 << 4;  // 16
-uint constant A_MEMBERSHIP_MANAGER   = 1 << 5;  // 32
+uint constant A_VAULT_OPERATOR       = 1 << 4;  // 16
+uint constant A_MEMBERSHIP_OPERATOR  = 1 << 5;  // 32
 
 uint constant PAUSE_GLOBAL        = 1 << 0;   // 1
 uint constant PAUSE_VAULT         = 1 << 1;   // 2
