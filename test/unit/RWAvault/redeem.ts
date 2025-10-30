@@ -110,8 +110,9 @@ describe('redeem', function () {
     await usdcMock.connect(vaultManager).approve(await rwaVault.getAddress(), vaultManagerBalanceStart);
     await rwaVault.connect(vaultManager).fulfillRedeems(1, maxTotalAssets);
 
-    expect(await usdcMock.balanceOf(vaultManager)).to.equal(vaultManagerBalanceStart - maxTotalAssets);
-    expect(await usdcMock.balanceOf(user)).to.equal(userBalanceStart + maxTotalAssets);
+    // +1 because of assets rounding down
+    expect(await usdcMock.balanceOf(vaultManager)).to.equal(vaultManagerBalanceStart - maxTotalAssets + 1n);
+    expect(await usdcMock.balanceOf(user)).to.equal(userBalanceStart + maxTotalAssets - 1n);
   });
 
   it('last fulfilled request can be partially fulfilled', async function () {
