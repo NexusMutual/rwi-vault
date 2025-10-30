@@ -98,7 +98,7 @@ contract Locks is ILocks, RegistryAware {
     address asset,
     uint totalAssetAmounts, 
     uint snapshotTimestamp
-  ) external only(A_VAULT_MANAGER) {
+  ) external only(A_VAULT_OPERATOR) {
     require(memberIds.length == assetAmounts.length, ArraysLengthMustBeEqual());
 
     uint sumRewards = 0;

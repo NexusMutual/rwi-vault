@@ -26,9 +26,9 @@ contract Registry is IRegistry {
     _;
   }
 
-  modifier onlyMembershipManager() {
-    address membershipManager = contracts[A_MEMBERSHIP_MANAGER].addr;
-    require(msg.sender == membershipManager, OnlyMembershipManager());
+  modifier onlyMembershipOperator() {
+    address membershipOperator = contracts[A_MEMBERSHIP_OPERATOR].addr;
+    require(msg.sender == membershipOperator, OnlyMembershipOperator());
     _;
   }
 
@@ -89,7 +89,7 @@ contract Registry is IRegistry {
     return membersMeta.lastMemberId;
   }
 
-  function addMember(address member) external onlyMembershipManager {
+  function addMember(address member) external onlyMembershipOperator {
     require(memberIds[member] == 0, AlreadyMember());
 
     uint memberId = ++membersMeta.lastMemberId;
@@ -115,7 +115,7 @@ contract Registry is IRegistry {
   function removeMember(uint memberId) external {
     require(memberId != 0, NotMember());
     address member = members[memberId];
-    require(msg.sender == member || msg.sender == contracts[A_MEMBERSHIP_MANAGER].addr, OnlyMemberOrManager());
+    require(msg.sender == member || msg.sender == contracts[A_MEMBERSHIP_OPERATOR].addr, OnlyMemberOrOperator());
 
     delete members[memberId];
     delete memberIds[member];

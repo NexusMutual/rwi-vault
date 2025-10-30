@@ -16,8 +16,8 @@ export async function setup(ethers: HardhatEthers) {
   }
 
   const registry = await ethers.deployContract('Registry', [accounts.governor.address]);
-  await registry.connect(accounts.governor).addContract(ContractIndexes.A_VAULT_MANAGER, accounts.vaultManager, false);
-  await registry.connect(accounts.governor).addContract(ContractIndexes.A_MEMBERSHIP_MANAGER, accounts.membershipManager, false);
+  await registry.connect(accounts.governor).addContract(ContractIndexes.A_VAULT_OPERATOR, accounts.vaultOperator, false);
+  await registry.connect(accounts.governor).addContract(ContractIndexes.A_MEMBERSHIP_OPERATOR, accounts.membershipOperator, false);
   await registry.connect(accounts.governor).setEmergencyAdmin(accounts.emergencyAdmin, true);
 
   const rwaVault = await ethers.deployContract('RWAVault', [await registry.getAddress(), await usdcMock.getAddress(), ASSET_DECIMALS]);
@@ -28,11 +28,11 @@ export async function setup(ethers: HardhatEthers) {
 
   // register members
   for (const member of accounts.members) {
-    await registry.connect(accounts.membershipManager).addMember(member.address);
+    await registry.connect(accounts.membershipOperator).addMember(member.address);
   }
 
   await rwaVault.connect(accounts.governor).initialize("RWA VAULT", "RWA", BASE_APY);
-  await rwaVault.connect(accounts.vaultManager).setAssetCap(ASSET_CAP);
+  await rwaVault.connect(accounts.vaultOperator).setAssetCap(ASSET_CAP);
 
   return {
     accounts,
