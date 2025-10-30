@@ -235,17 +235,17 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       uint assets = convertToAssets(shares);
 
       if (assets > assetsLeft) {
-        // partially fulfill request and keep pending status
+        // partially fulfill request and keep pending status, rounding down on both shares and assets
         shares = convertToShares(assetsLeft);
-        assets = assetsLeft;
+        assets = convertToAssets(shares);
+        assetsLeft = 0;
       } else {
         redeemRequest.status = RequestStatus.FULFILLED;
+        assetsLeft -= assets;
       }
 
       redeemRequest.fulfilledShares += shares.toUint96();
       redeemRequests[requestId] = redeemRequest;
-
-      assetsLeft -= assets;
 
       _burn(address(this), shares);
       IERC20(asset).safeTransferFrom(vaultManager, memberAddress, assets);
