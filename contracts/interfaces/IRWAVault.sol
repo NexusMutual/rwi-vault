@@ -56,7 +56,7 @@ interface IRWAVault is IERC7540 {
   event BaseApyChangeProposed(uint newBaseApy, uint activeFrom);
   event BaseApyChangeExecuted(uint newBaseApy, uint activeFrom, uint assetsPerShare);
 
-  error OnlyRequestOwnerOrVaultManager();
+  error OnlyRequestOwnerOrVaultOperator();
   error InsufficientBalance();
   error ZeroShares();
   error MaxAssetsExceeded();

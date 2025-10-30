@@ -87,6 +87,6 @@ interface IRegistry {
   error OnlyGovernor();
   error NotProxyOwner();
   error NotMemberRoles();
-  error OnlyMembershipManager();
-  error OnlyMemberOrManager();
+  error OnlyMembershipOperator();
+  error OnlyMemberOrOperator();
 }

@@ -12,20 +12,20 @@ describe('changeBaseApy', function () {
     return setup(ethers);
   }
 
-  it('only vault manager can propose a base apy change', async function () {
+  it('only vault operator can propose a base apy change', async function () {
     const { contracts: {rwaVault, registry} } = await networkHelpers.loadFixture(setupFixture)
 
     await expect(rwaVault.proposeBaseApyChange(0, 0)).to.be.revertedWithCustomError(registry, 'ContractDoesNotExist');
   });
 
   it('base apy change can be proposed and executed', async function () {
-    const { accounts: {vaultManager}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {vaultOperator}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.days(100);
     const newBaseApy = 200;
 
-    await rwaVault.connect(vaultManager).proposeBaseApyChange(newBaseApy, activeFrom);
+    await rwaVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom);
 
     await networkHelpers.time.increaseTo(activeFrom + 10);
 
@@ -36,25 +36,25 @@ describe('changeBaseApy', function () {
   });
 
   it('proposed activation time must be at least 90 days from now', async function () {
-    const { accounts: {vaultManager}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {vaultOperator}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.days(90) - 1;
     const newBaseApy = 200;
 
     await expect(
-      rwaVault.connect(vaultManager).proposeBaseApyChange(newBaseApy, activeFrom)
+      rwaVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom)
     ).to.be.revertedWithCustomError(rwaVault, 'ProposalActivationTimeTooSoon');
   });
 
   it('cant execute before activation time', async function () {
-    const { accounts: {vaultManager}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {vaultOperator}, contracts: {rwaVault} } = await networkHelpers.loadFixture(setupFixture);
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.days(100);
     const newBaseApy = 200;
 
-    await rwaVault.connect(vaultManager).proposeBaseApyChange(newBaseApy, activeFrom);
+    await rwaVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom);
 
     await networkHelpers.time.increaseTo(activeFrom - 10);
 
@@ -67,7 +67,7 @@ describe('changeBaseApy', function () {
   });
 
   it('should compound gain after apy change', async function () {
-    const { accounts: {members, vaultManager}, contracts: {rwaVault, usdcMock}, constants: {BASE_APY} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {members, vaultOperator}, contracts: {rwaVault, usdcMock}, constants: {BASE_APY} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
@@ -80,7 +80,7 @@ describe('changeBaseApy', function () {
     const activeFrom = now + duration.years(1)
     const newBaseApy = 200;
 
-    await rwaVault.connect(vaultManager).proposeBaseApyChange(newBaseApy, activeFrom);
+    await rwaVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom);
     await networkHelpers.time.increaseTo(activeFrom);
     await rwaVault.executeBaseApyChange();
 

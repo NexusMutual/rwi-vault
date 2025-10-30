@@ -5,8 +5,8 @@ const assignRoles = (accounts : any) => ({
   nonMembers: accounts.slice(1, 5),
   members: accounts.slice(5, 10),
   governor: accounts[10],
-  vaultManager: accounts[11],
-  membershipManager: accounts[12],
+  vaultOperator: accounts[11],
+  membershipOperator: accounts[12],
   emergencyAdmin: accounts[13],
 });
 

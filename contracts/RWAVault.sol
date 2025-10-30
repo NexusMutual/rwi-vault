@@ -51,7 +51,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     return assetDecimals;
   }
 
-  function setAssetCap(uint newAssetCap) external only(A_VAULT_MANAGER) {
+  function setAssetCap(uint newAssetCap) external only(A_VAULT_OPERATOR) {
     assetCap = newAssetCap;
   }
 
@@ -79,7 +79,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     return requests;
   }
 
-  function proposeBaseApyChange(uint proposalApy, uint proposalActivationTime) external only(A_VAULT_MANAGER) {
+  function proposeBaseApyChange(uint proposalApy, uint proposalActivationTime) external only(A_VAULT_OPERATOR) {
     require(proposalApy < BPS, InvalidApy());
     require(proposalActivationTime > block.timestamp + MIN_APY_PROPOSAL_TIME, ProposalActivationTimeTooSoon());
     
@@ -145,7 +145,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   function cancelDepositRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     DepositRequestData memory depositRequest = depositRequests[requestId];
     address memberAddress = registry.getMemberAddress(depositRequest.memberId);
-    require(msg.sender == memberAddress|| msg.sender == fetch(A_VAULT_MANAGER), OnlyRequestOwnerOrVaultManager());
+    require(msg.sender == memberAddress|| msg.sender == fetch(A_VAULT_OPERATOR), OnlyRequestOwnerOrVaultOperator());
     require(depositRequest.status == RequestStatus.PENDING, RequestNotPending());
 
     depositRequest.status = RequestStatus.CANCELED;
@@ -157,7 +157,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     emit DepositRequestCanceled(requestId, msg.sender);
   }
 
-  function fulfillDeposit(uint requestId, uint amount) public only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
+  function fulfillDeposit(uint requestId, uint amount) public only(A_VAULT_OPERATOR) whenNotPaused(PAUSE_VAULT) {
     _fulfillDeposit(requestId, amount);
   } 
 
@@ -190,8 +190,8 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       _mint(memberAddress, shares);
     }
 
-    // send assets to the vault manager
-    IERC20(asset).safeTransfer(fetch(A_VAULT_MANAGER), assets);
+    // send assets to the vault operator
+    IERC20(asset).safeTransfer(fetch(A_VAULT_OPERATOR), assets);
 
     emit DepositFulfilled(requestId, depositRequest.memberId, memberAddress, assets, shares);
     // for erc4626 compatibility
@@ -219,10 +219,10 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     return requestId;
   }
 
-  function fulfillRedeems(uint maxRequestId, uint maxTotalAssets) external only(A_VAULT_MANAGER) whenNotPaused(PAUSE_VAULT) {
+  function fulfillRedeems(uint maxRequestId, uint maxTotalAssets) external only(A_VAULT_OPERATOR) whenNotPaused(PAUSE_VAULT) {
     require(maxRequestId < redeemRequestNextId, MaxRequestIdTooLarge());
 
-    address vaultManager = fetch(A_VAULT_MANAGER);
+    address vaultOperator = fetch(A_VAULT_OPERATOR);
     uint assetsLeft = maxTotalAssets;
     uint requestId;
     for(requestId = redeemRequestNextFulfillId; requestId <= maxRequestId; requestId++) {
@@ -248,7 +248,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       redeemRequests[requestId] = redeemRequest;
 
       _burn(address(this), shares);
-      IERC20(asset).safeTransferFrom(vaultManager, memberAddress, assets);
+      IERC20(asset).safeTransferFrom(vaultOperator, memberAddress, assets);
 
       emit RedeemFulfilled(requestId, redeemRequest.memberId, memberAddress, assets, shares);
       // for erc4626 compatibility
@@ -264,7 +264,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   function cancelRedeemRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     RedeemRequestData memory redeemRequest = redeemRequests[requestId];
     address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
-    require(msg.sender == memberAddress || msg.sender == fetch(A_VAULT_MANAGER), OnlyRequestOwnerOrVaultManager());
+    require(msg.sender == memberAddress || msg.sender == fetch(A_VAULT_OPERATOR), OnlyRequestOwnerOrVaultOperator());
     require(redeemRequest.status == RequestStatus.PENDING, RequestNotPending());
 
     redeemRequest.status = RequestStatus.CANCELED;
