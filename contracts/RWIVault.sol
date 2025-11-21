@@ -146,6 +146,9 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   function cancelDepositRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     DepositRequestData memory depositRequest = depositRequests[requestId];
     address memberAddress = registry.getMemberAddress(depositRequest.memberId);
+    if (memberAddress == address(0)) {
+      memberAddress = fetch(A_VAULT_OPERATOR);
+    }
     
     require(msg.sender == memberAddress || msg.sender == fetch(A_VAULT_OPERATOR), OnlyRequestOwnerOrVaultOperator());
     require(depositRequest.status == RequestStatus.PENDING, RequestNotPending());
@@ -171,6 +174,9 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
     require(depositRequest.fulfilledAssets + assets <= depositRequest.assets, RequestedAssetsExceeded());
 
     address memberAddress = registry.getMemberAddress(depositRequest.memberId); 
+    if (memberAddress == address(0)) {
+      memberAddress = fetch(A_VAULT_OPERATOR);
+    }
 
     uint shares = convertToShares(assets);
 
@@ -235,6 +241,9 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
       if (redeemRequest.status != RequestStatus.PENDING) continue;
 
       address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
+      if (memberAddress == address(0)) {
+        memberAddress = vaultOperator;
+      }
 
       uint shares = redeemRequest.shares - redeemRequest.fulfilledShares;
       uint assets = convertToAssets(shares);
@@ -269,6 +278,9 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   function cancelRedeemRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     RedeemRequestData memory redeemRequest = redeemRequests[requestId];
     address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
+    if (memberAddress == address(0)) {
+      memberAddress = fetch(A_VAULT_OPERATOR);
+    }
     
     require(msg.sender == memberAddress || msg.sender == fetch(A_VAULT_OPERATOR), OnlyRequestOwnerOrVaultOperator());
     require(redeemRequest.status == RequestStatus.PENDING, RequestNotPending());
