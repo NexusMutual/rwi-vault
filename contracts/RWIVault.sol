@@ -5,12 +5,12 @@ import "./external/OpenZeppelin/Math.sol";
 import "./external/OpenZeppelin/SafeERC20.sol";
 import "./external/OpenZeppelin/SafeCast.sol";
 
-import "./interfaces/IRWAVault.sol";
+import "./interfaces/IRWIVault.sol";
 import "./interfaces/ILocks.sol";
 import "./RegistryAware.sol";
 import "./ERC7540.sol";
 
-contract RWAVault is IRWAVault, ERC7540, RegistryAware {
+contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   using SafeERC20 for IERC20;
   using SafeCast for uint;
 
@@ -134,6 +134,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     });
 
     emit DepositRequest(controller, owner, requestId, msg.sender, assets);
+    emit DepositRequestId(requestId, memberId);
     
     if (totalAssets() + assets <= assetCap) {
       _fulfillDeposit(requestId, assets);
@@ -145,7 +146,8 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   function cancelDepositRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     DepositRequestData memory depositRequest = depositRequests[requestId];
     address memberAddress = registry.getMemberAddress(depositRequest.memberId);
-    require(msg.sender == memberAddress|| msg.sender == fetch(A_VAULT_OPERATOR), OnlyRequestOwnerOrVaultOperator());
+    
+    require(msg.sender == memberAddress || msg.sender == fetch(A_VAULT_OPERATOR), OnlyRequestOwnerOrVaultOperator());
     require(depositRequest.status == RequestStatus.PENDING, RequestNotPending());
 
     depositRequest.status = RequestStatus.CANCELED;
@@ -154,9 +156,10 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     // send assets back
     IERC20(asset).safeTransfer(memberAddress, depositRequest.assets - depositRequest.fulfilledAssets);
 
-    emit DepositRequestCanceled(requestId, msg.sender);
+    emit DepositRequestCanceled(requestId, uint(depositRequest.memberId), msg.sender);
   }
 
+  // todo: rename amount to assets
   function fulfillDeposit(uint requestId, uint amount) public only(A_VAULT_OPERATOR) whenNotPaused(PAUSE_VAULT) {
     _fulfillDeposit(requestId, amount);
   } 
@@ -167,7 +170,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     require(depositRequest.status == RequestStatus.PENDING, RequestNotPending());
     require(depositRequest.fulfilledAssets + assets <= depositRequest.assets, RequestedAssetsExceeded());
 
-    address memberAddress = registry.getMemberAddress(depositRequest.memberId);
+    address memberAddress = registry.getMemberAddress(depositRequest.memberId); 
 
     uint shares = convertToShares(assets);
 
@@ -216,6 +219,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     });
 
     emit RedeemRequest(controller, owner, requestId, msg.sender, shares);
+    emit RedeemRequestId(requestId, memberId);
     return requestId;
   }
 
@@ -231,6 +235,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
       if (redeemRequest.status != RequestStatus.PENDING) continue;
 
       address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
+
       uint shares = redeemRequest.shares - redeemRequest.fulfilledShares;
       uint assets = convertToAssets(shares);
 
@@ -264,6 +269,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
   function cancelRedeemRequest(uint requestId) external whenNotPaused(PAUSE_VAULT) {
     RedeemRequestData memory redeemRequest = redeemRequests[requestId];
     address memberAddress = registry.getMemberAddress(redeemRequest.memberId);
+    
     require(msg.sender == memberAddress || msg.sender == fetch(A_VAULT_OPERATOR), OnlyRequestOwnerOrVaultOperator());
     require(redeemRequest.status == RequestStatus.PENDING, RequestNotPending());
 
@@ -273,7 +279,7 @@ contract RWAVault is IRWAVault, ERC7540, RegistryAware {
     // send shares back
     IERC20(this).safeTransfer(memberAddress, redeemRequest.shares - redeemRequest.fulfilledShares);
 
-    emit RedeemRequestCanceled(requestId, msg.sender);
+    emit RedeemRequestCanceled(requestId, uint(redeemRequest.memberId), msg.sender);
   }
 
   function pendingDepositRequest(uint requestId, address) external view override(ERC7540, IERC7540) returns (uint assets) {
