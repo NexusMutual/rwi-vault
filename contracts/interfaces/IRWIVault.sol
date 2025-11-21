@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import "./IERC7540.sol";
 
-interface IRWAVault is IERC7540 {
+interface IRWIVault is IERC7540 {
 
   enum RequestStatus { 
     PENDING,
@@ -47,9 +47,10 @@ interface IRWAVault is IERC7540 {
   function fulfillRedeems(uint maxRequestId, uint maxTotalAssets) external;
   function cancelRedeemRequest(uint requestId) external;
 
-
-  event DepositRequestCanceled(uint indexed requestId, address indexed sender);
-  event RedeemRequestCanceled(uint indexed requestId, address indexed sender);
+  event DepositRequestId(uint indexed requestId, uint indexed memberId);
+  event RedeemRequestId(uint indexed requestId, uint indexed memberId);
+  event DepositRequestCanceled(uint indexed requestId, uint indexed memberId, address indexed sender);
+  event RedeemRequestCanceled(uint indexed requestId, uint indexed memberId, address indexed sender);
   event DepositFulfilled(uint indexed requestId, uint indexed memberId, address indexed memberAddress, uint assets, uint shares);
   event RedeemFulfilled(uint indexed requestId, uint indexed memberId, address indexed memberAddress, uint assets, uint shares);
 
