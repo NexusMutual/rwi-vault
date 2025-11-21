@@ -172,7 +172,7 @@ contract Registry is IRegistry {
     proxy.upgradeTo(implementation);
 
     contracts[index] = Contract({ addr: address(proxy), isProxy: true });
-    contractIndexes[address(proxy)] = index;
+    contractIndexes[address(proxy)] += index;
 
     emit ContractDeployed(index, address(proxy), implementation);
   }
@@ -199,7 +199,7 @@ contract Registry is IRegistry {
     require(!isProxy || UpgradeableProxy(payable(contractAddress)).proxyOwner() == address(this), NotProxyOwner());
 
     contracts[index] = Contract({addr: contractAddress, isProxy: isProxy});
-    contractIndexes[contractAddress] = index;
+    contractIndexes[contractAddress] += index;
 
     emit ContractAdded(index, contractAddress, isProxy);
   }
@@ -209,7 +209,7 @@ contract Registry is IRegistry {
     require(_contract.addr != address(0), ContractDoesNotExist());
     require(index != C_GOVERNOR, InvalidContractIndex());
 
-    contractIndexes[_contract.addr] = 0;
+    contractIndexes[_contract.addr] -= index;
     delete contracts[index];
 
     emit ContractRemoved(index, _contract.addr, _contract.isProxy);
