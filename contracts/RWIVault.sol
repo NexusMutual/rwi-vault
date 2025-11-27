@@ -32,6 +32,8 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   }
 
   function initialize(string memory _name, string memory _symbol, uint _baseApy) only(C_GOVERNOR) external {
+    require(apyConfig.activeFrom == 0, AlreadyInitialized());
+
     __ERC20_init(_name, _symbol);
 
     apyConfig = BaseApyConfig({

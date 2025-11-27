@@ -113,8 +113,8 @@ contract Registry is IRegistry {
   }
 
   function removeMember(uint memberId) external {
-    require(memberId != 0, NotMember());
     address member = members[memberId];
+    require(member != address(0), NotMember());
     require(msg.sender == member || msg.sender == contracts[A_MEMBERSHIP_OPERATOR].addr, OnlyMemberOrOperator());
 
     delete members[memberId];
@@ -172,7 +172,7 @@ contract Registry is IRegistry {
     proxy.upgradeTo(implementation);
 
     contracts[index] = Contract({ addr: address(proxy), isProxy: true });
-    contractIndexes[address(proxy)] += index;
+    contractIndexes[address(proxy)] = index;
 
     emit ContractDeployed(index, address(proxy), implementation);
   }

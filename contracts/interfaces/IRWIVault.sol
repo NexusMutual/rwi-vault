@@ -75,4 +75,5 @@ interface IRWIVault is IERC7540 {
   error ProposalActivationTimeTooSoon();
   error RequestNotPending();
   error MaxRequestIdTooLarge();
+  error AlreadyInitialized();
 }
