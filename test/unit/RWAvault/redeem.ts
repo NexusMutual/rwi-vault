@@ -3,7 +3,7 @@ import { network } from "hardhat";
 import { setup } from './setup.js';
 import { parseUsdc } from '../utils/utils.js';
 import { RequestStatus } from '../utils/constants.js';
-import { RWAVault } from '../../../types/ethers-contracts/RWAVault.js';
+import { RwiVault } from '../../../types/ethers-contracts/RwiVault.js';
 import { Registry } from '../../../types/ethers-contracts/Registry.js';
 import { ERC20UsdcMock } from '../../../types/ethers-contracts/mock/ERC20UsdcMock.js';
 
@@ -14,7 +14,7 @@ describe('redeem', function () {
   let nonMembers : any[];
   let members : any[];
   let vaultOperator : any;
-  let rwaVault : RWAVault;
+  let rwiVault : RwiVault;
   let usdcMock : ERC20UsdcMock;
   let registry : Registry;
   let user: any;
@@ -25,20 +25,20 @@ describe('redeem', function () {
   }
 
   async function _deposit(user : any, amount : bigint) : Promise<bigint> {
-    await usdcMock.connect(user).approve(await rwaVault.getAddress(), amount);
-    await rwaVault.connect(user).requestDeposit(amount, user.address, user.address);
-    return rwaVault.balanceOf(user.address);
+    await usdcMock.connect(user).approve(await rwiVault.getAddress(), amount);
+    await rwiVault.connect(user).requestDeposit(amount, user.address, user.address);
+    return rwiVault.balanceOf(user.address);
   }
 
   async function _requestRedeem(user : any, amount : bigint) {
-    await rwaVault.connect(user).approve(await rwaVault.getAddress(), amount);
-    await rwaVault.connect(user).requestRedeem(amount, user.address, user.address);
+    await rwiVault.connect(user).approve(await rwiVault.getAddress(), amount);
+    await rwiVault.connect(user).requestRedeem(amount, user.address, user.address);
   }
 
   beforeEach(async function () {
     const { accounts, contracts } = await networkHelpers.loadFixture(setupFixture);
     ({members, nonMembers, vaultOperator} = accounts);
-    ({rwaVault, usdcMock, registry} = contracts);
+    ({rwiVault, usdcMock, registry} = contracts);
 
     user = members[0];
     const depositAmount = parseUsdc("1000");
@@ -49,31 +49,31 @@ describe('redeem', function () {
   it('only members can redeem', async function () {
     const nonMember = nonMembers[0];
 
-    await rwaVault.connect(user).transfer(nonMember.address, userShares);
+    await rwiVault.connect(user).transfer(nonMember.address, userShares);
 
-    await rwaVault.connect(nonMember).approve(await rwaVault.getAddress(), userShares);
-    await expect(rwaVault.connect(nonMember).requestRedeem(userShares, nonMember.address, nonMember.address))
-      .to.be.revertedWithCustomError(rwaVault, 'OnlyMember');
+    await rwiVault.connect(nonMember).approve(await rwiVault.getAddress(), userShares);
+    await expect(rwiVault.connect(nonMember).requestRedeem(userShares, nonMember.address, nonMember.address))
+      .to.be.revertedWithCustomError(rwiVault, 'OnlyMember');
   });
 
   it('redeem request goes to the queue when submitted', async function () {
     await _requestRedeem(user, userShares);
 
-    expect(await rwaVault.balanceOf(user.address)).to.equal(0);
-    expect(await rwaVault.balanceOf(await rwaVault.getAddress())).to.equal(userShares);
+    expect(await rwiVault.balanceOf(user.address)).to.equal(0);
+    expect(await rwiVault.balanceOf(await rwiVault.getAddress())).to.equal(userShares);
 
-    const [request] = await rwaVault.getRedeemRequests([1]);
+    const [request] = await rwiVault.getRedeemRequests([1]);
     expect(request.fulfilledShares).to.equal(0);
     expect(request.status).to.equal(RequestStatus.PENDING);
   });
 
   it('only vault operator can fulfill the request', async function () {
-    await expect(rwaVault.fulfillRedeems(1, parseUsdc("1"))).to.be.revertedWithCustomError(registry, 'ContractDoesNotExist');
+    await expect(rwiVault.fulfillRedeems(1, parseUsdc("1"))).to.be.revertedWithCustomError(registry, 'ContractDoesNotExist');
   });
 
   it('vault operator can fulfill the requests in FIFO order', async function () {
     const user1 = members[0];
-    const userShares1 = await rwaVault.balanceOf(user1.address);
+    const userShares1 = await rwiVault.balanceOf(user1.address);
     await _requestRedeem(user1, userShares1);
 
     const user2 = members[1];
@@ -86,12 +86,12 @@ describe('redeem', function () {
     const userShares3 = await _deposit(user3, depositAmount3);
     await _requestRedeem(user3, userShares3);
 
-    await usdcMock.connect(vaultOperator).approve(await rwaVault.getAddress(), parseUsdc("10000"));
-    await rwaVault.connect(vaultOperator).fulfillRedeems(2, parseUsdc("10000"));
+    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), parseUsdc("10000"));
+    await rwiVault.connect(vaultOperator).fulfillRedeems(2, parseUsdc("10000"));
 
-    expect(await rwaVault.balanceOf(await rwaVault.getAddress())).to.equal(userShares3);
+    expect(await rwiVault.balanceOf(await rwiVault.getAddress())).to.equal(userShares3);
 
-    const [request1, request2, request3] = await rwaVault.getRedeemRequests([1,2,3]);
+    const [request1, request2, request3] = await rwiVault.getRedeemRequests([1,2,3]);
     expect(request1.fulfilledShares).to.equal(userShares1);
     expect(request1.status).to.equal(RequestStatus.FULFILLED);
     expect(request2.fulfilledShares).to.equal(userShares2);
@@ -107,17 +107,16 @@ describe('redeem', function () {
     const vaultOperatorBalanceStart = await usdcMock.balanceOf(vaultOperator);
     const userBalanceStart = await usdcMock.balanceOf(user);
 
-    await usdcMock.connect(vaultOperator).approve(await rwaVault.getAddress(), vaultOperatorBalanceStart);
-    await rwaVault.connect(vaultOperator).fulfillRedeems(1, maxTotalAssets);
+    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), vaultOperatorBalanceStart);
+    await rwiVault.connect(vaultOperator).fulfillRedeems(1, maxTotalAssets);
 
-    // +1 because of assets rounding down
-    expect(await usdcMock.balanceOf(vaultOperator)).to.equal(vaultOperatorBalanceStart - maxTotalAssets + 1n);
-    expect(await usdcMock.balanceOf(user)).to.equal(userBalanceStart + maxTotalAssets - 1n);
+    expect(await usdcMock.balanceOf(vaultOperator)).to.equal(vaultOperatorBalanceStart - maxTotalAssets);
+    expect(await usdcMock.balanceOf(user)).to.equal(userBalanceStart + maxTotalAssets);
   });
 
   it('last fulfilled request can be partially fulfilled', async function () {
     const user1 = members[0];
-    const userShares1 = await rwaVault.balanceOf(user1.address);
+    const userShares1 = await rwiVault.balanceOf(user1.address);
     await _requestRedeem(user1, userShares1);
 
     const user2 = members[1];
@@ -126,12 +125,12 @@ describe('redeem', function () {
     await _requestRedeem(user2, userShares2);
 
     
-    await usdcMock.connect(vaultOperator).approve(await rwaVault.getAddress(), parseUsdc("2000"));
-    await rwaVault.connect(vaultOperator).fulfillRedeems(2, parseUsdc("2000"));
-    const expectedFulfilledShares = await rwaVault.convertToShares(parseUsdc("2000"));
+    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), parseUsdc("2000"));
+    await rwiVault.connect(vaultOperator).fulfillRedeems(2, parseUsdc("2000"));
+    const expectedFulfilledShares = await rwiVault.convertToShares(parseUsdc("2000"));
     
 
-    const [request1, request2] = await rwaVault.getRedeemRequests([1,2,3]);
+    const [request1, request2] = await rwiVault.getRedeemRequests([1,2,3]);
     expect(request1.fulfilledShares).to.equal(userShares1);
     expect(request1.status).to.equal(RequestStatus.FULFILLED);
     expect(request2.fulfilledShares).to.equal(expectedFulfilledShares - userShares1);
@@ -140,7 +139,7 @@ describe('redeem', function () {
 
   it('should continue fulfilling starting from the last partially fulfilled request', async function () {
     const user1 = members[0];
-    const userShares1 = await rwaVault.balanceOf(user1.address);
+    const userShares1 = await rwiVault.balanceOf(user1.address);
     await _requestRedeem(user1, userShares1);
 
     const user2 = members[1];
@@ -153,19 +152,19 @@ describe('redeem', function () {
     const userShares3 = await _deposit(user3, depositAmount3);
     await _requestRedeem(user3, userShares3);
 
-    await usdcMock.connect(vaultOperator).approve(await rwaVault.getAddress(), parseUsdc("10000"));
-    await rwaVault.connect(vaultOperator).fulfillRedeems(2, parseUsdc("2000"));
+    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), parseUsdc("10000"));
+    await rwiVault.connect(vaultOperator).fulfillRedeems(2, parseUsdc("2000"));
 
-    const [request2_1] = await rwaVault.getRedeemRequests([2]);
+    const [request2_1] = await rwiVault.getRedeemRequests([2]);
     expect(request2_1.status).to.equal(RequestStatus.PENDING);
 
-    await rwaVault.connect(vaultOperator).fulfillRedeems(3, parseUsdc("100"));
+    await rwiVault.connect(vaultOperator).fulfillRedeems(3, parseUsdc("100"));
 
-    const [request2_2] = await rwaVault.getRedeemRequests([2]);
+    const [request2_2] = await rwiVault.getRedeemRequests([2]);
     expect(request2_2.status).to.equal(RequestStatus.PENDING);
 
-    await rwaVault.connect(vaultOperator).fulfillRedeems(3, parseUsdc("1000"));
-    const [request2_3, request3] = await rwaVault.getRedeemRequests([2,3]);
+    await rwiVault.connect(vaultOperator).fulfillRedeems(3, parseUsdc("1000"));
+    const [request2_3, request3] = await rwiVault.getRedeemRequests([2,3]);
     expect(request2_3.status).to.equal(RequestStatus.FULFILLED);
     expect(request2_3.fulfilledShares).to.equal(userShares2);
     expect(request3.fulfilledShares).to.be.greaterThan(0);
@@ -177,13 +176,13 @@ describe('redeem', function () {
     
     await _requestRedeem(user, userShares);
 
-    await usdcMock.connect(vaultOperator).approve(await rwaVault.getAddress(), parseUsdc("10000"));
+    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), parseUsdc("10000"));
 
     const userAssetsBefore = await usdcMock.balanceOf(user.address);
-    const totalAssetsBefore = await rwaVault.totalAssets();
-    await rwaVault.connect(vaultOperator).fulfillRedeems(1, parseUsdc("10000"));
+    const totalAssetsBefore = await rwiVault.totalAssets();
+    await rwiVault.connect(vaultOperator).fulfillRedeems(1, parseUsdc("10000"));
 
-    const totalAssetsAfter = await rwaVault.totalAssets();
+    const totalAssetsAfter = await rwiVault.totalAssets();
     const userAssetsAfter = await usdcMock.balanceOf(user.address);
     expect(totalAssetsBefore - totalAssetsAfter).to.equal(userAssetsAfter - userAssetsBefore);
   });
@@ -191,23 +190,23 @@ describe('redeem', function () {
   it('user or vault operator can cancel the request', async function () {
     await _requestRedeem(user, userShares);
 
-    await expect(rwaVault.connect(members[1]).cancelRedeemRequest(1)).to.be.revertedWithCustomError(rwaVault, 'OnlyRequestOwnerOrVaultOperator');
+    await expect(rwiVault.connect(members[1]).cancelRedeemRequest(1)).to.be.revertedWithCustomError(rwiVault, 'OnlyRequestOwnerOrVaultOperator');
 
     // vault operator should also be able to cancel the request
-    await expect(rwaVault.connect(vaultOperator).cancelRedeemRequest.staticCall(1)).to.not.be.revert(ethers);
+    await expect(rwiVault.connect(vaultOperator).cancelRedeemRequest.staticCall(1)).to.not.be.revert(ethers);
 
-    expect(await rwaVault.balanceOf(user.address)).to.equal(0);
-    await rwaVault.connect(user).cancelRedeemRequest(1);
+    expect(await rwiVault.balanceOf(user.address)).to.equal(0);
+    await rwiVault.connect(user).cancelRedeemRequest(1);
     
-    const [request] = await rwaVault.getRedeemRequests([1]);
+    const [request] = await rwiVault.getRedeemRequests([1]);
     expect(request.fulfilledShares).to.equal(0);
     expect(request.status).to.equal(RequestStatus.CANCELLED);
-    expect(await rwaVault.balanceOf(user.address)).to.equal(userShares);
+    expect(await rwiVault.balanceOf(user.address)).to.equal(userShares);
   });
 
   it('cancelled requests are skipped on fulfillment', async function () {
     const user1 = members[0];
-    const userShares1 = await rwaVault.balanceOf(user1.address);
+    const userShares1 = await rwiVault.balanceOf(user1.address);
     await _requestRedeem(user1, userShares1);
 
     const user2 = members[1];
@@ -220,13 +219,13 @@ describe('redeem', function () {
     const userShares3 = await _deposit(user3, depositAmount3);
     await _requestRedeem(user3, userShares3);
 
-    await rwaVault.connect(user2).cancelRedeemRequest(2);
+    await rwiVault.connect(user2).cancelRedeemRequest(2);
     
-    const expectTotalAssets = await rwaVault.convertToAssets(userShares1 + userShares3);
-    await usdcMock.connect(vaultOperator).approve(await rwaVault.getAddress(), expectTotalAssets);
-    await rwaVault.connect(vaultOperator).fulfillRedeems(3, expectTotalAssets);
+    const expectTotalAssets = await rwiVault.convertToAssets(userShares1 + userShares3);
+    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), expectTotalAssets);
+    await rwiVault.connect(vaultOperator).fulfillRedeems(3, expectTotalAssets);
 
-    const [request1, request2, request3] = await rwaVault.getRedeemRequests([1,2,3]);
+    const [request1, request2, request3] = await rwiVault.getRedeemRequests([1,2,3]);
     expect(request1.fulfilledShares).to.equal(userShares1);
     expect(request1.status).to.equal(RequestStatus.FULFILLED);
     expect(request2.fulfilledShares).to.equal(0);
