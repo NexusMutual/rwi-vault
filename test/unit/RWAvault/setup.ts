@@ -2,8 +2,8 @@ import { getAccounts } from '../utils/accounts.js'
 import { ContractIndexes } from "../utils/constants.js"
 import { HardhatEthers } from '@nomicfoundation/hardhat-ethers/types';
 
-const BASE_APY = 700; // 7%
-const ASSET_DECIMALS = 8;
+const BASE_APY = 650; // 6.5%
+const ASSET_DECIMALS = 6;
 const ASSET_CAP = 10000000 * (10 ** ASSET_DECIMALS);
 
 export async function setup(ethers: HardhatEthers) {
@@ -20,10 +20,10 @@ export async function setup(ethers: HardhatEthers) {
   await registry.connect(accounts.governor).addContract(ContractIndexes.A_MEMBERSHIP_OPERATOR, accounts.membershipOperator, false);
   await registry.connect(accounts.governor).setEmergencyAdmin(accounts.emergencyAdmin, true);
 
-  const rwaVault = await ethers.deployContract('RWAVault', [await registry.getAddress(), await usdcMock.getAddress(), ASSET_DECIMALS]);
-  await registry.connect(accounts.governor).addContract(ContractIndexes.C_VAULT, await rwaVault.getAddress(), false);
+  const rwiVault = await ethers.deployContract('RWIVault', [await registry.getAddress(), await usdcMock.getAddress(), ASSET_DECIMALS]);
+  await registry.connect(accounts.governor).addContract(ContractIndexes.C_VAULT, await rwiVault.getAddress(), false);
 
-  const locks = await ethers.deployContract('Locks', [await registry.getAddress(), await rwaVault.getAddress()]);
+  const locks = await ethers.deployContract('Locks', [await registry.getAddress(), await rwiVault.getAddress()]);
   await registry.connect(accounts.governor).addContract(ContractIndexes.C_LOCKS, await locks.getAddress(), false);
 
   // register members
@@ -31,14 +31,14 @@ export async function setup(ethers: HardhatEthers) {
     await registry.connect(accounts.membershipOperator).addMember(member.address);
   }
 
-  await rwaVault.connect(accounts.governor).initialize("RWA VAULT", "RWA", BASE_APY);
-  await rwaVault.connect(accounts.vaultOperator).setAssetCap(ASSET_CAP);
+  await rwiVault.connect(accounts.governor).initialize("RWI VAULT", "RWI", BASE_APY);
+  await rwiVault.connect(accounts.vaultOperator).setAssetCap(ASSET_CAP);
 
   return {
     accounts,
     contracts: {
       registry,
-      rwaVault,
+      rwiVault,
       locks,
       usdcMock
     },
