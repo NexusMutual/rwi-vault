@@ -3,9 +3,9 @@ import { network } from "hardhat";
 import { setup } from './setup.js';
 import { parseUsdc } from '../utils/utils.js';
 import { RequestStatus } from '../utils/constants.js';
-import { RwiVault } from '../../../types/ethers-contracts/RwiVault.js';
+import { RWIVault } from '../../../types/ethers-contracts/RWIVault.js';
 import { Registry } from '../../../types/ethers-contracts/Registry.js';
-import { ERC20UsdcMock } from '../../../types/ethers-contracts/mock/ERC20UsdcMock.js';
+import { ERC20Mock } from '../../../types/ethers-contracts/mock/ERC20Mock.js';
 
 const { ethers, networkHelpers } = await network.connect();
 
@@ -14,8 +14,8 @@ describe('redeem', function () {
   let nonMembers : any[];
   let members : any[];
   let vaultOperator : any;
-  let rwiVault : RwiVault;
-  let usdcMock : ERC20UsdcMock;
+  let rwiVault : RWIVault;
+  let usdcMock : ERC20Mock;
   let registry : Registry;
   let user: any;
   let userShares : bigint;

@@ -66,7 +66,7 @@ describe('locking', function () {
     await rwaSharesMock.connect(user).approve(await locks.getAddress(), sharesToLock);
     await expect(locks.connect(user).lockShares(sharesToLock, lockPeriod)).to.be.revertedWithCustomError(locks, 'InvalidPeriod');
 
-    const lockPeriod2 = duration.days(2 * 365 + 1);
+    const lockPeriod2 = duration.days(2 * 365 + 5);
     await expect(locks.connect(user).lockShares(sharesToLock, lockPeriod2)).to.be.revertedWithCustomError(locks, 'InvalidPeriod');
   });
 

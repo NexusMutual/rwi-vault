@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import "./external/OpenZeppelin/Math.sol";
 import "./external/OpenZeppelin/SafeERC20.sol";
 import "./external/OpenZeppelin/SafeCast.sol";
+import "./external/solady/FixedPointMathLib.sol";
 
 import "./interfaces/IRWIVault.sol";
 import "./interfaces/ILocks.sol";
@@ -14,8 +15,8 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   using SafeERC20 for IERC20;
   using SafeCast for uint;
 
-  uint constant public BPS = 100_00;
   uint constant public MIN_APY_PROPOSAL_TIME = 90 days;
+  uint constant public WAD = 1e18;
 
   uint public assetCap;
 
@@ -31,16 +32,16 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   constructor(address _registry, address _asset, uint8 _assetDecimals) RegistryAware(_registry) ERC7540(_asset, _assetDecimals) { 
   }
 
-  function initialize(string memory _name, string memory _symbol, uint _baseApy) only(C_GOVERNOR) external {
+  function initialize(string memory _name, string memory _symbol, uint _baseRate) only(C_GOVERNOR) external {
     require(apyConfig.activeFrom == 0, AlreadyInitialized());
 
     __ERC20_init(_name, _symbol);
 
     apyConfig = BaseApyConfig({
       startAssetsPerShare: ASSET_UNIT.toUint96(),
-      apy: _baseApy.toUint16(),
+      rate: _baseRate.toUint64(),
       activeFrom: block.timestamp.toUint32(),
-      proposedApy: 0,
+      proposedRate: 0,
       proposedActivationTime: 0
     });
 
@@ -58,7 +59,11 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   }
 
   function getBaseApy() external view returns(uint) {
-    return apyConfig.apy;
+    return Math.mulDiv(WAD, FixedPointMathLib.wadPow(uint(apyConfig.rate), 365 days), WAD);
+  }
+
+  function getBaseRate() external view returns(uint) {
+    return apyConfig.rate;
   }
 
   function getBaseApyConfig() external view returns(BaseApyConfig memory) {
@@ -81,32 +86,31 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
     return requests;
   }
 
-  function proposeBaseApyChange(uint proposalApy, uint proposalActivationTime) external only(A_VAULT_OPERATOR) {
-    require(proposalApy < BPS, InvalidApy());
+  function proposeBaseApyChange(uint proposalRate, uint proposalActivationTime) external only(A_VAULT_OPERATOR) {
     require(proposalActivationTime > block.timestamp + MIN_APY_PROPOSAL_TIME, ProposalActivationTimeTooSoon());
     
-    apyConfig.proposedApy = proposalApy.toUint16(); 
+    apyConfig.proposedRate = proposalRate.toUint64(); 
     apyConfig.proposedActivationTime = proposalActivationTime.toUint32();
 
-    emit BaseApyChangeProposed(proposalApy, proposalActivationTime);
+    emit BaseApyChangeProposed(proposalRate, proposalActivationTime);
   } 
 
   function executeBaseApyChange() external {
-    require(apyConfig.proposedApy > 0, ProposalDoesntExist());
+    require(apyConfig.proposedRate > 0, ProposalDoesntExist());
     require(apyConfig.proposedActivationTime <= block.timestamp, ProposalNotActive());
 
     BaseApyConfig memory config = apyConfig;
 
     config.startAssetsPerShare = convertToAssets(ASSET_UNIT).toUint96();
-    config.apy = apyConfig.proposedApy;
+    config.rate = apyConfig.proposedRate;
     config.activeFrom = block.timestamp.toUint32();
 
-    config.proposedApy = 0;
+    config.proposedRate = 0;
     config.proposedActivationTime = 0;
 
     apyConfig = config;
 
-    emit BaseApyChangeExecuted(apyConfig.apy, apyConfig.activeFrom, apyConfig.startAssetsPerShare);
+    emit BaseApyChangeExecuted(apyConfig.rate, apyConfig.activeFrom, apyConfig.startAssetsPerShare);
   }
 
   function requestDeposit(uint assets, address controller, address owner) external override(ERC7540, IERC7540) whenNotPaused(PAUSE_VAULT) returns (uint requestId) {
@@ -319,8 +323,12 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   function _getCurrentAssetsPerShare() internal view returns (uint) {
     BaseApyConfig memory baseApy = apyConfig;
     uint timePassed = block.timestamp - baseApy.activeFrom;
-    uint gainPerShare = Math.mulDiv(baseApy.startAssetsPerShare, uint(baseApy.apy) * timePassed, BPS * 365 days);
-    return baseApy.startAssetsPerShare + gainPerShare;
+    // console.log('baseApy.startAssetsPerShare', baseApy.startAssetsPerShare);
+    // console.log('timePassed', timePassed);
+    // console.log('baseApy.rate', baseApy.rate);
+    // console.log('pow', FixedPointMathLib.wadPow(uint(baseApy.rate), timePassed));
+    // console.log('------------------');
+    return Math.mulDiv(baseApy.startAssetsPerShare, FixedPointMathLib.wadPow(uint(baseApy.rate), timePassed), WAD);
   }
 
   function totalAssets() public view override returns (uint) {
