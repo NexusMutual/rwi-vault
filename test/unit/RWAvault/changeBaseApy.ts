@@ -23,16 +23,16 @@ describe('changeBaseApy', function () {
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.days(100);
-    const newBaseApy = 200;
+    const newRate = 1000000000500000000n;
 
-    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom);
+    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom);
 
     await networkHelpers.time.increaseTo(activeFrom + 10);
 
     // anybody should be able to call execute
     await rwiVault.executeBaseApyChange();
 
-    expect(await rwiVault.getBaseApy()).to.equal(newBaseApy);
+    expect(await rwiVault.getBaseRate()).to.equal(newRate);
   });
 
   it('proposed activation time must be at least 90 days from now', async function () {
@@ -40,10 +40,10 @@ describe('changeBaseApy', function () {
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.days(90) - 1;
-    const newBaseApy = 200;
+    const newRate = 1000000000500000000n;
 
     await expect(
-      rwiVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom)
+      rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom)
     ).to.be.revertedWithCustomError(rwiVault, 'ProposalActivationTimeTooSoon');
   });
 
@@ -52,9 +52,9 @@ describe('changeBaseApy', function () {
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.days(100);
-    const newBaseApy = 200;
+    const newRate = 1000000000500000000n;
 
-    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom);
+    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom);
 
     await networkHelpers.time.increaseTo(activeFrom - 10);
 
@@ -75,20 +75,26 @@ describe('changeBaseApy', function () {
     await rwiVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
 
     const userShares = await rwiVault.balanceOf(user.address);
+    const baseApy = await rwiVault.getBaseApy();
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.years(1)
-    const newBaseApy = 200;
-
-    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newBaseApy, activeFrom);
+    const newRate = 1000000000500000000n;
+    
+    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom);
     await networkHelpers.time.increaseTo(activeFrom);
     await rwiVault.executeBaseApyChange();
 
     await networkHelpers.time.increase(duration.years(1));
 
-    const assetsAfterFirstYear = depositAmount + depositAmount * BigInt(BASE_APY) / 100_00n;
-    const assetsAfterSecondYear = assetsAfterFirstYear + assetsAfterFirstYear * BigInt(newBaseApy) / 100_00n;
+    const newBaseApy = await rwiVault.getBaseApy();
 
-    expect(await rwiVault.convertToAssets(userShares)).to.equal(assetsAfterSecondYear);
+    const wad = 1000000000000000000n;
+    const assetsAfterFirstYear = depositAmount * baseApy / wad;
+    const assetsAfterSecondYear = assetsAfterFirstYear * newBaseApy / wad;
+
+    // don't check last digits, because of usdc precision
+    const trimemdLastDigits = assetsAfterSecondYear - assetsAfterSecondYear % 100000n;
+    expect(await rwiVault.convertToAssets(userShares)).to.equal(trimemdLastDigits);
   });
 });

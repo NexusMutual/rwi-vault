@@ -3,7 +3,7 @@ import { network } from "hardhat";
 import { setup } from './setup.js';
 import { parseUsdc } from '../utils/utils.js';
 import { RequestStatus } from '../utils/constants.js';
-import { RwiVault } from '../../../types/ethers-contracts/RwiVault.js';
+import { RWIVault } from '../../../types/ethers-contracts/RWIVault.js';
 import { Registry } from '../../../types/ethers-contracts/Registry.js';
 
 const { ethers, networkHelpers } = await network.connect();
@@ -188,7 +188,7 @@ describe('deposit', function () {
   describe('deposit fulfillment reverts', async function () {
     let user : any;
     let vaultOperator : any;
-    let rwiVault : RwiVault;
+    let rwiVault : RWIVault;
     let registry : Registry;
     const depositAmount = parseUsdc("1000");
 
