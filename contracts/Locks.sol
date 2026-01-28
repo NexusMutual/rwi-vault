@@ -12,7 +12,7 @@ contract Locks is ILocks, RegistryAware {
   using SafeCast for uint;
 
   uint constant public MIN_LOCK_PERIOD = 30 days;
-  uint constant public MAX_LOCK_PERIOD = 730 days;
+  uint constant public MAX_LOCK_PERIOD = 732 days;
 
   mapping(uint memberId => Lock[]) private memberLocks;
 
