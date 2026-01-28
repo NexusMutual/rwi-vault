@@ -28,9 +28,9 @@ interface IRWIVault is IERC7540 {
 
   struct BaseApyConfig {
     uint96 startAssetsPerShare;
-    uint16 apy;
+    uint64 rate; // rate per second in WAD
     uint32 activeFrom;
-    uint16 proposedApy;
+    uint64 proposedRate;
     uint32 proposedActivationTime;
   }
 

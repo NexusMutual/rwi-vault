@@ -8,12 +8,14 @@ const { duration } = networkHelpers.time;
 
 describe('shareAssetConversion', function () {
 
+  const wad = 1000000000000000000n;
+
   async function setupFixture() {
     return setup(ethers);
   }
 
   it('share to assets conversion after 1 year must be at base apy rate', async function () {
-    const { contracts: {rwiVault}, constants: {BASE_APY, ASSET_DECIMALS} } = await networkHelpers.loadFixture(setupFixture);
+    const { contracts: {rwiVault}, constants: {ASSET_DECIMALS} } = await networkHelpers.loadFixture(setupFixture);
     
     const ASSET_UNIT = 10n ** BigInt(ASSET_DECIMALS);
     expect(await rwiVault.convertToAssets(ASSET_UNIT)).to.equal(ASSET_UNIT);
@@ -21,16 +23,17 @@ describe('shareAssetConversion', function () {
 
     await networkHelpers.time.increase(duration.years(1));
 
-    const assetsPerShare = ASSET_UNIT + ASSET_UNIT * BigInt(BASE_APY) / 100_00n;
+    const baseApy = await rwiVault.getBaseApy();
+    const assetsPerShare = ASSET_UNIT * baseApy / wad;
     const sharesPerAsset = ASSET_UNIT * (10n ** BigInt(ASSET_DECIMALS)) / assetsPerShare;
 
     expect(await rwiVault.convertToAssets(ASSET_UNIT)).to.equal(assetsPerShare);
     expect(await rwiVault.convertToShares(ASSET_UNIT)).to.equal(sharesPerAsset);
 
-    expect(await rwiVault.convertToAssets(sharesPerAsset)).to.approximately(ASSET_UNIT, 1n);  // conversion rounding error is acceptable
+    expect(await rwiVault.convertToAssets(sharesPerAsset)).to.be.closeTo(ASSET_UNIT, 1n);  // conversion rounding error is acceptable
     expect(await rwiVault.convertToAssets(sharesPerAsset)).to.be.lessThanOrEqual(ASSET_UNIT); // make sure rounding errors are always in favor of the vault
 
-    expect(await rwiVault.convertToShares(assetsPerShare)).to.approximately(ASSET_UNIT, 1n);  // conversion rounding error is acceptable
+    expect(await rwiVault.convertToShares(assetsPerShare)).to.be.closeTo(ASSET_UNIT, 1n);  // conversion rounding error is acceptable
     expect(await rwiVault.convertToShares(assetsPerShare)).to.be.lessThanOrEqual(ASSET_UNIT); // make sure rounding errors are always in favor of the vault
   }); 
 
@@ -43,13 +46,13 @@ describe('shareAssetConversion', function () {
     for (let i = 0; i < repeatPeriod; i++) {
       await networkHelpers.time.increase(period);
       const unitConversion = await rwiVault.convertToAssets(await rwiVault.convertToShares(ASSET_UNIT));
-      expect(unitConversion).to.approximately(ASSET_UNIT, 2n);  // conversion rounding error is acceptable
+      expect(unitConversion).to.be.closeTo(ASSET_UNIT, 2n);  // conversion rounding error is acceptable
       expect(unitConversion).to.be.lessThanOrEqual(ASSET_UNIT); // make sure rounding errors are always in favor of the vault
     }
   });
 
   it('user should get exact base apy percentage gain after 1 year', async function () {
-    const { accounts: {members}, contracts: {rwiVault, usdcMock}, constants: {BASE_APY} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {members}, contracts: {rwiVault, usdcMock}} = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
@@ -57,35 +60,37 @@ describe('shareAssetConversion', function () {
     await rwiVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
     const userShares = await rwiVault.balanceOf(user.address);
 
-    const gain = depositAmount * BigInt(BASE_APY) / 100_00n;
+    const baseApy = await rwiVault.getBaseApy();
+    const assetsAfterYear = depositAmount * baseApy / wad;
 
     await networkHelpers.time.increase(duration.years(1));
 
-    expect(await rwiVault.convertToAssets(userShares)).to.equal(depositAmount + gain);    
+    expect(await rwiVault.convertToAssets(userShares)).to.be.closeTo(assetsAfterYear, 1n);    
   });
 
-  it('user should get pro rated gain during any fifth period of a year', async function () {
-    const { accounts: {members}, contracts: {rwiVault, usdcMock}, constants: {BASE_APY} } = await networkHelpers.loadFixture(setupFixture);
+  it('users should get the same gain over period of 1 year regardless of when they deposited', async function () {
+    const { accounts: {members}, contracts: {rwiVault, usdcMock}} = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
+    const user2 = members[1];
     const depositAmount = parseUsdc("1000");
+    const depositAmount2 = parseUsdc("1000");
 
     await usdcMock.connect(user).approve(await rwiVault.getAddress(), depositAmount);
     await rwiVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
     const userShares = await rwiVault.balanceOf(user.address);
 
-    const period = duration.days(73); // 73 days is 1/5 of a year
-    const gainForPeriod = depositAmount * BigInt(BASE_APY / 5) / 100_00n;
+    await networkHelpers.time.increase(duration.years(1));
 
-    let lastAmount = depositAmount;
+    const assetsAfterYear = await rwiVault.convertToAssets(userShares);
 
-    const repeatPeriod = 20;
-    for (let i = 0; i < repeatPeriod; i++) {
-      await networkHelpers.time.increase(period);
-      const currentAmount = await rwiVault.convertToAssets(userShares);
+    await usdcMock.connect(user2).approve(await rwiVault.getAddress(), depositAmount2);
+    await rwiVault.connect(user2).requestDeposit(depositAmount2, user2.address, user2.address);    
+    const user2shares = await rwiVault.balanceOf(user2.address);
 
-      expect(currentAmount).to.equal(lastAmount + gainForPeriod);
+    await networkHelpers.time.increase(duration.years(1));
 
-      lastAmount = currentAmount;
-    }
+    const assetsAfterYear2 = await rwiVault.convertToAssets(user2shares);
+    
+    expect(assetsAfterYear).to.be.closeTo(assetsAfterYear2, 1n);
   });
 });

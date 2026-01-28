@@ -2,7 +2,7 @@ import { getAccounts } from '../utils/accounts.js'
 import { ContractIndexes } from "../utils/constants.js"
 import { HardhatEthers } from '@nomicfoundation/hardhat-ethers/types';
 
-const BASE_APY = 650; // 6.5%
+const BASE_RATE = 1000000001847694958n; // 6% apy
 const ASSET_DECIMALS = 6;
 const ASSET_CAP = 10000000 * (10 ** ASSET_DECIMALS);
 
@@ -31,7 +31,7 @@ export async function setup(ethers: HardhatEthers) {
     await registry.connect(accounts.membershipOperator).addMember(member.address);
   }
 
-  await rwiVault.connect(accounts.governor).initialize("RWI VAULT", "RWI", BASE_APY);
+  await rwiVault.connect(accounts.governor).initialize("RWI VAULT", "RWI", BASE_RATE);
   await rwiVault.connect(accounts.vaultOperator).setAssetCap(ASSET_CAP);
 
   return {
@@ -43,7 +43,7 @@ export async function setup(ethers: HardhatEthers) {
       usdcMock
     },
     constants: {
-      BASE_APY,
+      BASE_RATE,
       ASSET_CAP,
       ASSET_DECIMALS
     }
