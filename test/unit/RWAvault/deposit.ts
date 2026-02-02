@@ -31,8 +31,8 @@ describe('deposit', function () {
     const depositAmount = parseUsdc("1000");
 
     await usdcMock.connect(user).approve(await rwiVault.getAddress(), depositAmount);
-    const expectedShares = await rwiVault.convertToShares(depositAmount);
     await rwiVault.connect(user).requestDeposit(depositAmount, user.address, user.address);
+    const expectedShares = await rwiVault.convertToShares(depositAmount);
 
     expect(await rwiVault.balanceOf(user.address)).to.equal(expectedShares);
 
@@ -138,9 +138,9 @@ describe('deposit', function () {
     const depositAmount = parseUsdc("1000");
     const lockPeriod = duration.days(30);
 
-    const expectedShares = await rwiVault.convertToShares(depositAmount);
     await usdcMock.connect(user).approve(await rwiVault.getAddress(), depositAmount);
     await rwiVault.connect(user).requestDepositAndLock(depositAmount, user.address, user.address, lockPeriod);
+    const expectedShares = await rwiVault.convertToShares(depositAmount);
     
     const [request] = await rwiVault.getDepositRequests([1]);
     expect(request.fulfilledAssets).to.equal(depositAmount);
