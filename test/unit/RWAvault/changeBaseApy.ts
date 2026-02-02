@@ -67,7 +67,7 @@ describe('changeBaseApy', function () {
   });
 
   it('should compound gain after apy change', async function () {
-    const { accounts: {members, vaultOperator}, contracts: {rwiVault, usdcMock}, constants: {BASE_APY} } = await networkHelpers.loadFixture(setupFixture);
+    const { accounts: {members, vaultOperator}, contracts: {rwiVault, usdcMock} } = await networkHelpers.loadFixture(setupFixture);
     const user = members[0];
     const depositAmount = parseUsdc("1000");
 
@@ -82,19 +82,18 @@ describe('changeBaseApy', function () {
     const newRate = 1000000000500000000n;
     
     await rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom);
-    await networkHelpers.time.increaseTo(activeFrom);
+    await networkHelpers.time.setNextBlockTimestamp(activeFrom);
     await rwiVault.executeBaseApyChange();
 
-    await networkHelpers.time.increase(duration.years(1));
+    await networkHelpers.time.setNextBlockTimestamp(activeFrom + duration.years(1));
+    await networkHelpers.mine();
 
     const newBaseApy = await rwiVault.getBaseApy();
 
     const wad = 1000000000000000000n;
-    const assetsAfterFirstYear = depositAmount * baseApy / wad;
-    const assetsAfterSecondYear = assetsAfterFirstYear * newBaseApy / wad;
-
-    // don't check last digits, because of usdc precision
-    const trimemdLastDigits = assetsAfterSecondYear - assetsAfterSecondYear % 100000n;
-    expect(await rwiVault.convertToAssets(userShares)).to.equal(trimemdLastDigits);
+    const totalApy = (baseApy * newBaseApy) / wad;
+    const totalAssets = (depositAmount * totalApy) / wad;
+    
+    expect(await rwiVault.convertToAssets(userShares)).to.be.closeTo(totalAssets, 1n);
   });
 });

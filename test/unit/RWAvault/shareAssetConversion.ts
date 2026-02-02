@@ -18,8 +18,15 @@ describe('shareAssetConversion', function () {
     const { contracts: {rwiVault}, constants: {ASSET_DECIMALS} } = await networkHelpers.loadFixture(setupFixture);
     
     const ASSET_UNIT = 10n ** BigInt(ASSET_DECIMALS);
-    expect(await rwiVault.convertToAssets(ASSET_UNIT)).to.equal(ASSET_UNIT);
-    expect(await rwiVault.convertToShares(ASSET_UNIT)).to.equal(ASSET_UNIT);
+
+    // conversion rounding error of 1 is acceptable because of rounding donw
+    // making sure rounding errors are always in favor of the vault
+
+    expect(await rwiVault.convertToAssets(ASSET_UNIT)).to.closeTo(ASSET_UNIT, 1n);
+    expect(await rwiVault.convertToAssets(ASSET_UNIT)).to.lessThanOrEqual(ASSET_UNIT);
+    
+    expect(await rwiVault.convertToShares(ASSET_UNIT)).to.closeTo(ASSET_UNIT, 1n);
+    expect(await rwiVault.convertToShares(ASSET_UNIT)).to.lessThanOrEqual(ASSET_UNIT);
 
     await networkHelpers.time.increase(duration.years(1));
 
@@ -30,11 +37,11 @@ describe('shareAssetConversion', function () {
     expect(await rwiVault.convertToAssets(ASSET_UNIT)).to.equal(assetsPerShare);
     expect(await rwiVault.convertToShares(ASSET_UNIT)).to.equal(sharesPerAsset);
 
-    expect(await rwiVault.convertToAssets(sharesPerAsset)).to.be.closeTo(ASSET_UNIT, 1n);  // conversion rounding error is acceptable
-    expect(await rwiVault.convertToAssets(sharesPerAsset)).to.be.lessThanOrEqual(ASSET_UNIT); // make sure rounding errors are always in favor of the vault
+    expect(await rwiVault.convertToAssets(sharesPerAsset)).to.be.closeTo(ASSET_UNIT, 1n);
+    expect(await rwiVault.convertToAssets(sharesPerAsset)).to.be.lessThanOrEqual(ASSET_UNIT);
 
-    expect(await rwiVault.convertToShares(assetsPerShare)).to.be.closeTo(ASSET_UNIT, 1n);  // conversion rounding error is acceptable
-    expect(await rwiVault.convertToShares(assetsPerShare)).to.be.lessThanOrEqual(ASSET_UNIT); // make sure rounding errors are always in favor of the vault
+    expect(await rwiVault.convertToShares(assetsPerShare)).to.be.closeTo(ASSET_UNIT, 1n);
+    expect(await rwiVault.convertToShares(assetsPerShare)).to.be.lessThanOrEqual(ASSET_UNIT);
   }); 
 
   it('shareToAssets(assetsToShares(UNIT)) == UNIT at any point in time', async function () {
@@ -46,8 +53,8 @@ describe('shareAssetConversion', function () {
     for (let i = 0; i < repeatPeriod; i++) {
       await networkHelpers.time.increase(period);
       const unitConversion = await rwiVault.convertToAssets(await rwiVault.convertToShares(ASSET_UNIT));
-      expect(unitConversion).to.be.closeTo(ASSET_UNIT, 2n);  // conversion rounding error is acceptable
-      expect(unitConversion).to.be.lessThanOrEqual(ASSET_UNIT); // make sure rounding errors are always in favor of the vault
+      expect(unitConversion).to.be.closeTo(ASSET_UNIT, 2n);
+      expect(unitConversion).to.be.lessThanOrEqual(ASSET_UNIT);
     }
   });
 

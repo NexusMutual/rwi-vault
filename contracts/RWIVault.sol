@@ -38,7 +38,7 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
     __ERC20_init(_name, _symbol);
 
     apyConfig = BaseApyConfig({
-      startAssetsPerShare: ASSET_UNIT.toUint96(),
+      startRate: WAD.toUint64(),
       rate: _baseRate.toUint64(),
       activeFrom: block.timestamp.toUint32(),
       proposedRate: 0,
@@ -101,7 +101,7 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
 
     BaseApyConfig memory config = apyConfig;
 
-    config.startAssetsPerShare = convertToAssets(ASSET_UNIT).toUint96();
+    config.startRate = _getCurrentRate().toUint64();
     config.rate = apyConfig.proposedRate;
     config.activeFrom = block.timestamp.toUint32();
 
@@ -110,7 +110,7 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
 
     apyConfig = config;
 
-    emit BaseApyChangeExecuted(apyConfig.rate, apyConfig.activeFrom, apyConfig.startAssetsPerShare);
+    emit BaseApyChangeExecuted(apyConfig.rate, apyConfig.activeFrom, apyConfig.startRate);
   }
 
   function requestDeposit(uint assets, address controller, address owner) external override(ERC7540, IERC7540) whenNotPaused(PAUSE_VAULT) returns (uint requestId) {
@@ -313,22 +313,26 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   }
 
   function _convertToShares(uint assets, Math.Rounding rounding) internal view override returns (uint) {
-    return Math.mulDiv(assets, ASSET_UNIT, _getCurrentAssetsPerShare(), rounding);
+    return Math.mulDiv(assets, WAD, _getCurrentRate(), rounding);
   }
 
   function _convertToAssets(uint shares, Math.Rounding rounding) internal view override returns (uint) {
-    return Math.mulDiv(shares, _getCurrentAssetsPerShare(), ASSET_UNIT, rounding);
+    return Math.mulDiv(shares, _getCurrentRate(), WAD, rounding);
   }
 
-  function _getCurrentAssetsPerShare() internal view returns (uint) {
+  function _getCurrentRate() internal view returns (uint) {
     BaseApyConfig memory baseApy = apyConfig;
     uint timePassed = block.timestamp - baseApy.activeFrom;
-    // console.log('baseApy.startAssetsPerShare', baseApy.startAssetsPerShare);
-    // console.log('timePassed', timePassed);
-    // console.log('baseApy.rate', baseApy.rate);
-    // console.log('pow', FixedPointMathLib.wadPow(uint(baseApy.rate), timePassed));
-    // console.log('------------------');
-    return Math.mulDiv(baseApy.startAssetsPerShare, FixedPointMathLib.wadPow(uint(baseApy.rate), timePassed), WAD);
+
+    // rate = startRate * (rate ^ timePassed)
+    uint rate = Math.mulDiv(
+      baseApy.startRate, 
+      FixedPointMathLib.wadPow(uint(baseApy.rate), timePassed), 
+      WAD, 
+      Math.Rounding.Floor
+    );
+
+    return rate;
   }
 
   function totalAssets() public view override returns (uint) {
