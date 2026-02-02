@@ -110,8 +110,11 @@ describe('redeem', function () {
     await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), vaultOperatorBalanceStart);
     await rwiVault.connect(vaultOperator).fulfillRedeems(1, maxTotalAssets);
 
-    expect(await usdcMock.balanceOf(vaultOperator)).to.equal(vaultOperatorBalanceStart - maxTotalAssets);
-    expect(await usdcMock.balanceOf(user)).to.equal(userBalanceStart + maxTotalAssets);
+    expect(await usdcMock.balanceOf(vaultOperator)).to.gte(vaultOperatorBalanceStart - maxTotalAssets);
+    expect(await usdcMock.balanceOf(user)).to.lte(userBalanceStart + maxTotalAssets);
+
+    expect(await usdcMock.balanceOf(vaultOperator)).to.closeTo(vaultOperatorBalanceStart - maxTotalAssets, 1n);
+    expect(await usdcMock.balanceOf(user)).to.closeTo(userBalanceStart + maxTotalAssets, 1n);
   });
 
   it('last fulfilled request can be partially fulfilled', async function () {
@@ -184,7 +187,10 @@ describe('redeem', function () {
 
     const totalAssetsAfter = await rwiVault.totalAssets();
     const userAssetsAfter = await usdcMock.balanceOf(user.address);
-    expect(totalAssetsBefore - totalAssetsAfter).to.equal(userAssetsAfter - userAssetsBefore);
+
+    expect(totalAssetsAfter).to.be.lt(totalAssetsBefore);
+    // total difference is a bit less because assets gets yeild for a few seconds
+    expect(totalAssetsBefore - totalAssetsAfter).to.closeTo(userAssetsAfter - userAssetsBefore, 1000n);
   });
 
   it('user or vault operator can cancel the request', async function () {
@@ -221,9 +227,11 @@ describe('redeem', function () {
 
     await rwiVault.connect(user2).cancelRedeemRequest(2);
     
+
     const expectTotalAssets = await rwiVault.convertToAssets(userShares1 + userShares3);
-    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), expectTotalAssets);
-    await rwiVault.connect(vaultOperator).fulfillRedeems(3, expectTotalAssets);
+    const offset = 10000n; // offset because there is more yeild for a few seconds
+    await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), expectTotalAssets + offset);
+    await rwiVault.connect(vaultOperator).fulfillRedeems(3, expectTotalAssets + offset);
 
     const [request1, request2, request3] = await rwiVault.getRedeemRequests([1,2,3]);
     expect(request1.fulfilledShares).to.equal(userShares1);
