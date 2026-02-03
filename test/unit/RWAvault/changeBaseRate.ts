@@ -6,7 +6,7 @@ import { parseUsdc } from '../utils/utils.js';
 const { ethers, networkHelpers } = await network.connect();
 const { duration } = networkHelpers.time;
 
-describe('changeBaseApy', function () {
+describe('changeBaseRate', function () {
 
   async function setupFixture() {
     return setup(ethers);
@@ -15,24 +15,24 @@ describe('changeBaseApy', function () {
   it('only vault operator can propose a base apy change', async function () {
     const { contracts: {rwiVault, registry} } = await networkHelpers.loadFixture(setupFixture)
 
-    await expect(rwiVault.proposeBaseApyChange(0, 0)).to.be.revertedWithCustomError(registry, 'ContractDoesNotExist');
+    await expect(rwiVault.proposeBaseRateChange(0, 0)).to.be.revertedWithCustomError(registry, 'ContractDoesNotExist');
   });
 
-  it('base apy change can be proposed and executed', async function () {
+  it('base rate change can be proposed and executed', async function () {
     const { accounts: {vaultOperator}, contracts: {rwiVault} } = await networkHelpers.loadFixture(setupFixture);
 
     const now = await networkHelpers.time.latest();
     const activeFrom = now + duration.days(100);
     const newRate = 1000000000500000000n;
 
-    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom);
+    await rwiVault.connect(vaultOperator).proposeBaseRateChange(newRate, activeFrom);
 
     await networkHelpers.time.increaseTo(activeFrom + 10);
 
     // anybody should be able to call execute
-    await rwiVault.executeBaseApyChange();
+    await rwiVault.executeBaseRateChange();
 
-    expect(await rwiVault.getBaseRate()).to.equal(newRate);
+    expect(await rwiVault.getRatePerSecond()).to.equal(newRate);
   });
 
   it('proposed activation time must be at least 90 days from now', async function () {
@@ -43,8 +43,21 @@ describe('changeBaseApy', function () {
     const newRate = 1000000000500000000n;
 
     await expect(
-      rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom)
+      rwiVault.connect(vaultOperator).proposeBaseRateChange(newRate, activeFrom)
     ).to.be.revertedWithCustomError(rwiVault, 'ProposalActivationTimeTooSoon');
+  });
+
+  it('proposed apy must be between 1e18 and 1.5e18', async function () {
+    const { accounts: {vaultOperator}, contracts: {rwiVault} } = await networkHelpers.loadFixture(setupFixture);
+
+    const now = await networkHelpers.time.latest();
+    const activeFrom = now + duration.days(100);
+
+    const newRate = 999999999999999999n;
+    await expect(rwiVault.connect(vaultOperator).proposeBaseRateChange(newRate, activeFrom)).to.be.revertedWithCustomError(rwiVault, 'InvalidRate');
+
+    const newRate2 = 100000001285721431n; // 50% apy
+    await expect(rwiVault.connect(vaultOperator).proposeBaseRateChange(newRate2, activeFrom)).to.be.revertedWithCustomError(rwiVault, 'InvalidRate');
   });
 
   it('cant execute before activation time', async function () {
@@ -54,16 +67,16 @@ describe('changeBaseApy', function () {
     const activeFrom = now + duration.days(100);
     const newRate = 1000000000500000000n;
 
-    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom);
+    await rwiVault.connect(vaultOperator).proposeBaseRateChange(newRate, activeFrom);
 
     await networkHelpers.time.increaseTo(activeFrom - 10);
 
-    await expect(rwiVault.executeBaseApyChange()).to.be.revertedWithCustomError(rwiVault, 'ProposalNotActive');
+    await expect(rwiVault.executeBaseRateChange()).to.be.revertedWithCustomError(rwiVault, 'ProposalNotActive');
   });
 
   it('cant execute if there is no new proposal', async function () {
     const { contracts: {rwiVault} } = await networkHelpers.loadFixture(setupFixture);
-    await expect(rwiVault.executeBaseApyChange()).to.be.revertedWithCustomError(rwiVault, 'ProposalDoesntExist');
+    await expect(rwiVault.executeBaseRateChange()).to.be.revertedWithCustomError(rwiVault, 'ProposalDoesntExist');
   });
 
   it('should compound gain after apy change', async function () {
@@ -81,9 +94,9 @@ describe('changeBaseApy', function () {
     const activeFrom = now + duration.years(1)
     const newRate = 1000000000500000000n;
     
-    await rwiVault.connect(vaultOperator).proposeBaseApyChange(newRate, activeFrom);
+    await rwiVault.connect(vaultOperator).proposeBaseRateChange(newRate, activeFrom);
     await networkHelpers.time.setNextBlockTimestamp(activeFrom);
-    await rwiVault.executeBaseApyChange();
+    await rwiVault.executeBaseRateChange();
 
     await networkHelpers.time.setNextBlockTimestamp(activeFrom + duration.years(1));
     await networkHelpers.mine();
