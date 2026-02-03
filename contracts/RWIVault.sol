@@ -15,8 +15,9 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   using SafeERC20 for IERC20;
   using SafeCast for uint;
 
-  uint constant public MIN_APY_PROPOSAL_TIME = 90 days;
+  uint constant public MIN_RATE_PROPOSAL_TIME = 90 days;
   uint constant public WAD = 1e18;
+  uint constant public MAX_APY = 1.5e18;
 
   uint public assetCap;
 
@@ -27,19 +28,19 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   mapping(uint depositRequestId => DepositRequestData) private depositRequests;
   mapping(uint redeemRequestId => RedeemRequestData) private redeemRequests;
 
-  BaseApyConfig private apyConfig;
+  BaseRateConfig private rateConfig;
 
   constructor(address _registry, address _asset, uint8 _assetDecimals) RegistryAware(_registry) ERC7540(_asset, _assetDecimals) { 
   }
 
   function initialize(string memory _name, string memory _symbol, uint _baseRate) only(C_GOVERNOR) external {
-    require(apyConfig.activeFrom == 0, AlreadyInitialized());
+    require(rateConfig.activeFrom == 0, AlreadyInitialized());
 
     __ERC20_init(_name, _symbol);
 
-    apyConfig = BaseApyConfig({
+    rateConfig = BaseRateConfig({
       startRate: WAD.toUint64(),
-      rate: _baseRate.toUint64(),
+      ratePerSecond: _baseRate.toUint64(),
       activeFrom: block.timestamp.toUint32(),
       proposedRate: 0,
       proposedActivationTime: 0
@@ -59,15 +60,15 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   }
 
   function getBaseApy() external view returns(uint) {
-    return Math.mulDiv(WAD, FixedPointMathLib.wadPow(uint(apyConfig.rate), 365 days), WAD);
+    return FixedPointMathLib.wadPow(uint(rateConfig.ratePerSecond), 365 days);
   }
 
-  function getBaseRate() external view returns(uint) {
-    return apyConfig.rate;
+  function getRatePerSecond() external view returns(uint) {
+    return rateConfig.ratePerSecond;
   }
 
-  function getBaseApyConfig() external view returns(BaseApyConfig memory) {
-    return apyConfig;
+  function getBaseRateConfig() external view returns(BaseRateConfig memory) {
+    return rateConfig;
   }
 
   function getDepositRequests(uint[] calldata requestIds) external view returns(DepositRequestData[] memory) {
@@ -86,31 +87,34 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
     return requests;
   }
 
-  function proposeBaseApyChange(uint proposalRate, uint proposalActivationTime) external only(A_VAULT_OPERATOR) {
-    require(proposalActivationTime > block.timestamp + MIN_APY_PROPOSAL_TIME, ProposalActivationTimeTooSoon());
-    
-    apyConfig.proposedRate = proposalRate.toUint64(); 
-    apyConfig.proposedActivationTime = proposalActivationTime.toUint32();
+  function proposeBaseRateChange(uint proposalRate, uint proposalActivationTime) external only(A_VAULT_OPERATOR) {
+    require(proposalActivationTime > block.timestamp + MIN_RATE_PROPOSAL_TIME, ProposalActivationTimeTooSoon());
 
-    emit BaseApyChangeProposed(proposalRate, proposalActivationTime);
+    uint proposedApy = FixedPointMathLib.wadPow(uint(proposalRate), 365 days);
+    require(proposalRate >= WAD && proposedApy <= MAX_APY, InvalidRate());
+    
+    rateConfig.proposedRate = proposalRate.toUint64(); 
+    rateConfig.proposedActivationTime = proposalActivationTime.toUint32();
+
+    emit BaseRateChangeProposed(proposalRate, proposalActivationTime);
   } 
 
-  function executeBaseApyChange() external {
-    require(apyConfig.proposedRate > 0, ProposalDoesntExist());
-    require(apyConfig.proposedActivationTime <= block.timestamp, ProposalNotActive());
+  function executeBaseRateChange() external {
+    require(rateConfig.proposedRate > 0, ProposalDoesntExist());
+    require(rateConfig.proposedActivationTime <= block.timestamp, ProposalNotActive());
 
-    BaseApyConfig memory config = apyConfig;
+    BaseRateConfig memory config = rateConfig;
 
     config.startRate = _getCurrentRate().toUint64();
-    config.rate = apyConfig.proposedRate;
+    config.ratePerSecond = rateConfig.proposedRate;
     config.activeFrom = block.timestamp.toUint32();
 
     config.proposedRate = 0;
     config.proposedActivationTime = 0;
 
-    apyConfig = config;
+    rateConfig = config;
 
-    emit BaseApyChangeExecuted(apyConfig.rate, apyConfig.activeFrom, apyConfig.startRate);
+    emit BaseRateChangeExecuted(rateConfig.ratePerSecond, rateConfig.activeFrom, rateConfig.startRate);
   }
 
   function requestDeposit(uint assets, address controller, address owner) external override(ERC7540, IERC7540) whenNotPaused(PAUSE_VAULT) returns (uint requestId) {
@@ -140,7 +144,7 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
     });
 
     emit DepositRequest(controller, owner, requestId, msg.sender, assets);
-    emit DepositRequestId(requestId, memberId);
+    emit DepositRequested(requestId, memberId, assets);
     
     if (totalAssets() + assets <= assetCap) {
       _fulfillDeposit(requestId, assets);
@@ -168,9 +172,8 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
     emit DepositRequestCanceled(requestId, uint(depositRequest.memberId), msg.sender);
   }
 
-  // todo: rename amount to assets
-  function fulfillDeposit(uint requestId, uint amount) public only(A_VAULT_OPERATOR) whenNotPaused(PAUSE_VAULT) {
-    _fulfillDeposit(requestId, amount);
+  function fulfillDeposit(uint requestId, uint assets) public only(A_VAULT_OPERATOR) whenNotPaused(PAUSE_VAULT) {
+    _fulfillDeposit(requestId, assets);
   } 
 
   function _fulfillDeposit(uint requestId, uint assets) internal {
@@ -231,7 +234,7 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
     });
 
     emit RedeemRequest(controller, owner, requestId, msg.sender, shares);
-    emit RedeemRequestId(requestId, memberId);
+    emit RedeemRequested(requestId, memberId, shares);
     return requestId;
   }
 
@@ -321,13 +324,13 @@ contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   }
 
   function _getCurrentRate() internal view returns (uint) {
-    BaseApyConfig memory baseApy = apyConfig;
-    uint timePassed = block.timestamp - baseApy.activeFrom;
+    BaseRateConfig memory baseRate = rateConfig;
+    uint timePassed = block.timestamp - baseRate.activeFrom;
 
-    // rate = startRate * (rate ^ timePassed)
+    // rate = startRate * (ratePerSecond ^ timePassed)
     uint rate = Math.mulDiv(
-      baseApy.startRate, 
-      FixedPointMathLib.wadPow(uint(baseApy.rate), timePassed), 
+      baseRate.startRate, 
+      FixedPointMathLib.wadPow(uint(baseRate.ratePerSecond), timePassed), 
       WAD, 
       Math.Rounding.Floor
     );

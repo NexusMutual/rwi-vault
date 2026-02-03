@@ -26,36 +26,37 @@ interface IRWIVault is IERC7540 {
     RequestStatus status;
   }
 
-  struct BaseApyConfig {
+  struct BaseRateConfig {
     uint64 startRate;
-    uint64 rate; // rate per second in WAD
+    uint64 ratePerSecond; // in WAD
     uint32 activeFrom;
     uint64 proposedRate;
     uint32 proposedActivationTime;
   }
 
   function getBaseApy() external view returns(uint);
-  function getBaseApyConfig() external view returns(BaseApyConfig memory);
+  function getRatePerSecond() external view returns(uint);
+  function getBaseRateConfig() external view returns(BaseRateConfig memory);
   function setAssetCap(uint newAssetCap) external;
   function getDepositRequests(uint[] calldata requestIds) external view returns(DepositRequestData[] memory);
   function getRedeemRequests(uint[] calldata requestIds) external view returns(RedeemRequestData[] memory);
-  function proposeBaseApyChange(uint proposalApy, uint proposalActivationTime) external;
-  function executeBaseApyChange() external;
+  function proposeBaseRateChange(uint proposalRate, uint proposalActivationTime) external;
+  function executeBaseRateChange() external;
   function requestDepositAndLock(uint assets, address controller, address owner, uint lockPeriod) external returns(uint requestId);
   function cancelDepositRequest(uint requestId) external;
-  function fulfillDeposit(uint requestId, uint amount) external;
+  function fulfillDeposit(uint requestId, uint assets) external;
   function fulfillRedeems(uint maxRequestId, uint maxTotalAssets) external;
   function cancelRedeemRequest(uint requestId) external;
 
-  event DepositRequestId(uint indexed requestId, uint indexed memberId);
-  event RedeemRequestId(uint indexed requestId, uint indexed memberId);
+  event DepositRequested(uint indexed requestId, uint indexed memberId, uint assets);
+  event RedeemRequested(uint indexed requestId, uint indexed memberId, uint shares);
   event DepositRequestCanceled(uint indexed requestId, uint indexed memberId, address indexed sender);
   event RedeemRequestCanceled(uint indexed requestId, uint indexed memberId, address indexed sender);
   event DepositFulfilled(uint indexed requestId, uint indexed memberId, address indexed memberAddress, uint assets, uint shares);
   event RedeemFulfilled(uint indexed requestId, uint indexed memberId, address indexed memberAddress, uint assets, uint shares);
 
-  event BaseApyChangeProposed(uint newBaseApy, uint activeFrom);
-  event BaseApyChangeExecuted(uint newBaseApy, uint activeFrom, uint assetsPerShare);
+  event BaseRateChangeProposed(uint newBaseRate, uint proposalActivationTime);
+  event BaseRateChangeExecuted(uint newBaseRate, uint activeFrom, uint startRate);
 
   error OnlyRequestOwnerOrVaultOperator();
   error InsufficientBalance();
@@ -70,7 +71,7 @@ interface IRWIVault is IERC7540 {
   error InvalidRequestId();
   error OwnerNotSender();
   error ControllerNotSender();
-  error InvalidApy();
+  error InvalidRate();
   error NoProposal();
   error ProposalActivationTimeTooSoon();
   error RequestNotPending();

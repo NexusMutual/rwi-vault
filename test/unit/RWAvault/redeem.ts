@@ -189,7 +189,7 @@ describe('redeem', function () {
     const userAssetsAfter = await usdcMock.balanceOf(user.address);
 
     expect(totalAssetsAfter).to.be.lt(totalAssetsBefore);
-    // total difference is a bit less because assets gets yeild for a few seconds
+    // total difference is a bit less because assets gets yield for a few seconds
     expect(totalAssetsBefore - totalAssetsAfter).to.closeTo(userAssetsAfter - userAssetsBefore, 1000n);
   });
 
@@ -229,7 +229,7 @@ describe('redeem', function () {
     
 
     const expectTotalAssets = await rwiVault.convertToAssets(userShares1 + userShares3);
-    const offset = 10000n; // offset because there is more yeild for a few seconds
+    const offset = 10000n; // offset because there is more yield for a few seconds
     await usdcMock.connect(vaultOperator).approve(await rwiVault.getAddress(), expectTotalAssets + offset);
     await rwiVault.connect(vaultOperator).fulfillRedeems(3, expectTotalAssets + offset);
 
