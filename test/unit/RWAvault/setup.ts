@@ -9,13 +9,13 @@ const ASSET_CAP = 10000000 * (10 ** ASSET_DECIMALS);
 export async function setup(ethers: HardhatEthers) {
   const accounts = await getAccounts(ethers);
 
-  const usdcMock = await ethers.deployContract('ERC20Mock', ["USDC Mock", "USDCMOCK", 8]);
+  const usdcMock = await ethers.deployContract('ERC20Mock', ["USDC Mock", "USDCMOCK", ASSET_DECIMALS]);
   // mint usdcMock to members
   for (const member of accounts.members) {
-    await usdcMock.connect(member).mint(member.address, ethers.parseUnits("100000", 8));
+    await usdcMock.connect(member).mint(member.address, ethers.parseUnits("10000000", ASSET_DECIMALS));
   }
 
-  const registry = await ethers.deployContract('Registry', [accounts.governor.address]);
+  const registry = await ethers.deployContract('RWIRegistry', [accounts.governor.address]);
   await registry.connect(accounts.governor).addContract(ContractIndexes.A_VAULT_OPERATOR, accounts.vaultOperator, false);
   await registry.connect(accounts.governor).addContract(ContractIndexes.A_MEMBERSHIP_OPERATOR, accounts.membershipOperator, false);
   await registry.connect(accounts.governor).setEmergencyAdmin(accounts.emergencyAdmin, true);
