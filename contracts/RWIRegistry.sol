@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "./interfaces/IRegistry.sol";
+import "./external/OpenZeppelin/SafeCast.sol";
+import "./interfaces/IRWIRegistry.sol";
 import "./RegistryAware.sol";
 import "./UpgradeableProxy.sol";
 
-contract Registry is IRegistry {
+contract RWIRegistry is IRWIRegistry {
+  using SafeCast for uint;
 
   // contracts
   mapping(uint index => Contract) internal contracts;
@@ -18,7 +20,7 @@ contract Registry is IRegistry {
 
   // emergency pause
   mapping(address => bool) public isEmergencyAdmin;
-  uint internal pauseConfig; 
+  SystemPause internal systemPause; // 3 slots
 
   modifier onlyGovernor() {
     address governor = contracts[C_GOVERNOR].addr;
@@ -37,6 +39,13 @@ contract Registry is IRegistry {
     _;
   }
 
+  modifier whenNotPaused(uint mask) {
+    uint config = systemPause.config;
+    uint maskWithGlobal = mask | PAUSE_GLOBAL;
+    require(config & maskWithGlobal == 0, Paused(config, mask));
+    _;
+  }
+
   constructor(address governor) {
     _addContract(C_GOVERNOR, governor, false);
   }
@@ -48,26 +57,36 @@ contract Registry is IRegistry {
     emit EmergencyAdminSet(_emergencyAdmin, enabled);
   }
 
-  function setPauseConfig(uint newPauseConfig) external onlyEmergencyAdmin {
-    pauseConfig = newPauseConfig;
-    emit PauseConfigSet(newPauseConfig, msg.sender);
+  function proposePauseConfig(uint config) external onlyEmergencyAdmin {
+    systemPause.proposedConfig = config.toUint48();
+    systemPause.proposer = msg.sender;
+    emit PauseConfigProposed(config, msg.sender);
+  }
+
+  function confirmPauseConfig(uint config) external onlyEmergencyAdmin {
+    require(systemPause.proposer != address(0), NoConfigProposed());
+    require(systemPause.proposer != msg.sender, ProposerCannotConfirmPause());
+    require(systemPause.proposedConfig == config.toUint48(), PauseConfigMismatch());
+    systemPause.config = config.toUint48();
+    delete systemPause.proposedConfig;
+    delete systemPause.proposer;
+    emit PauseConfigConfirmed(config, msg.sender);
+  }
+
+  function getSystemPause() external view returns (SystemPause memory) {
+    return systemPause;
   }
 
   function getPauseConfig() external view returns (uint config) {
-    return pauseConfig;
+    return systemPause.config;
   }
 
   function isPaused(uint mask) external view returns (bool) {
-    return pauseConfig & mask != 0;
+    uint maskWithGlobal = mask | PAUSE_GLOBAL;
+    return systemPause.config & maskWithGlobal != 0;
   }
 
   /* == MEMBERSHIP MANAGEMENT == */
-
-  modifier whenNotPaused(uint mask) {
-    uint maskWithGlobal = mask | PAUSE_GLOBAL;
-    require(pauseConfig & maskWithGlobal == 0, Paused(pauseConfig, mask));
-    _;
-  }
   
   function isMember(address member) external view returns (bool) {
     return memberIds[member] != 0;
@@ -91,6 +110,7 @@ contract Registry is IRegistry {
 
   function addMember(address member) external onlyMembershipOperator {
     require(memberIds[member] == 0, AlreadyMember());
+    require(member != address(0), InvalidAddress());
 
     uint memberId = ++membersMeta.lastMemberId;
     ++membersMeta.memberCount;
@@ -104,6 +124,7 @@ contract Registry is IRegistry {
     uint memberId = memberIds[msg.sender];
     require(memberId != 0, NotMember());
     require(memberIds[newAddress] == 0, AlreadyMember());
+    require(newAddress != address(0), InvalidAddress());
 
     delete memberIds[msg.sender];
     memberIds[newAddress] = memberId;

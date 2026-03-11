@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-interface IRegistry {
+interface IRWIRegistry {
 
   struct Contract {
     address addr;
@@ -21,6 +21,9 @@ interface IRegistry {
 
   /* == EMERGENCY PAUSE == */
   function setEmergencyAdmin(address _emergencyAdmin, bool enabled) external;
+  function proposePauseConfig(uint config) external;
+  function confirmPauseConfig(uint config) external;
+  function getSystemPause() external view returns (SystemPause memory);
   function getPauseConfig() external view returns (uint config);
   function isPaused(uint mask) external view returns (bool);
   function isEmergencyAdmin(address member) external view returns (bool);
@@ -58,7 +61,8 @@ interface IRegistry {
   event ContractRemoved(uint indexed index, address indexed contractAddress, bool isProxy);
 
   event EmergencyAdminSet(address indexed emergencyAdmin, bool enabled);
-  event PauseConfigSet(uint config, address indexed confirmer);
+  event PauseConfigProposed(uint config, address indexed proposer);
+  event PauseConfigConfirmed(uint config, address indexed confirmer);
 
   error ContractAlreadyExists();
   error InvalidContractIndex();
@@ -74,15 +78,7 @@ interface IRegistry {
 
   error NotMember();
   error AlreadyMember();
-  error AddressAlreadyUsedForJoining();
-  error InvalidJoinFee();
-  error InvalidSignature();
-  error FeeTransferFailed();
-
-  error NotAdvisoryBoardMember();
-  error AlreadyAdvisoryBoardMember();
-  error AdvisoryBoardMemberCannotLeave();
-  error InvalidSeat();
+  error InvalidAddress();
 
   error OnlyGovernor();
   error NotProxyOwner();
