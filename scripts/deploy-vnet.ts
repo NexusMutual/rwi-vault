@@ -1,7 +1,7 @@
 import { network } from "hardhat";
 import { ContractIndexes } from "../test/unit/utils/constants.js";
 
-const BASE_APY = 650; // 6.5%
+const BASE_RATE = 1000000001847694958n; // 6% apy
 const ASSET_DECIMALS = 6;
 const ASSET_CAP = 10000000 * (10 ** ASSET_DECIMALS);
 
@@ -17,7 +17,6 @@ async function main() {
   console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH");
 
   const usdcAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-  // const governorAddress = "0x8E68137756572D30760e47d7bBf5E3f4ECd6Fcf6";
   const governorAddress = deployer.address;
   const vaultOperatorAddress = deployer.address;
   const membershipOperatorAddress = deployer.address;
@@ -29,14 +28,14 @@ async function main() {
   console.log("Vault Operator Address:", vaultOperatorAddress);
   console.log("Membership Operator Address:", membershipOperatorAddress);
   console.log("Emergency Admin Address:", emergencyAdminAddress);
-  console.log("Base APY:", BASE_APY, "(7%)");
+  console.log("Base RATE:", BASE_RATE);
   console.log("Asset Cap:", ASSET_CAP);
 
   const governorSigner = deployer;
   const vaultOperatorSigner = deployer;
 
   // Deploy Registry
-  const registry = await ethers.deployContract("Registry", [governorAddress]);
+  const registry = await ethers.deployContract("RWIRegistry", [governorAddress]);
   await registry.waitForDeployment();
   await sleep(1000);
   console.log("Registry deployed to:", await registry.getAddress());
@@ -68,40 +67,44 @@ async function main() {
   console.log("RwiVault deployed to:", await rwiVault.getAddress());
 
   const tx4 = await registry.connect(governorSigner)
-    .addContract(ContractIndexes.C_VAULT, await rwiVault.getAddress(), false);
+    .deployContract(ContractIndexes.C_VAULT, ethers.encodeBytes32String("RWIVAULT"), await rwiVault.getAddress());
   await tx4.wait();
   await sleep(1000);
+
+  const rwiVaultProxy = await ethers.getContractAt("RWIVault", await registry.getContractAddressByIndex(ContractIndexes.C_VAULT));
 
   // Deploy Locks
   const locks = await ethers.deployContract("Locks", [
     await registry.getAddress(),
-    await rwiVault.getAddress()
+    await rwiVaultProxy.getAddress()
   ]);
   await locks.waitForDeployment();
   await sleep(1000);
   console.log("Locks deployed to:", await locks.getAddress());
 
   const tx5 = await registry.connect(governorSigner)
-    .addContract(ContractIndexes.C_LOCKS, await locks.getAddress(), false);
+    .deployContract(ContractIndexes.C_LOCKS, ethers.encodeBytes32String("LOCKS"), await locks.getAddress());
   await tx5.wait();
   await sleep(1000);
 
+  const locksProxy = await ethers.getContractAt("Locks", await registry.getContractAddressByIndex(ContractIndexes.C_LOCKS));
+
   // Initialize RwiVault
-  const tx6 = await rwiVault.connect(governorSigner)
-    .initialize("RWI VAULT", "RWIV", BASE_APY);
+  const tx6 = await rwiVaultProxy.connect(governorSigner)
+    .initialize("RWI VAULT", "RWIV", BASE_RATE);
   await tx6.wait();
   await sleep(1000);
 
   // Set asset cap
-  const tx7 = await rwiVault.connect(vaultOperatorSigner)
+  const tx7 = await rwiVaultProxy.connect(vaultOperatorSigner)
     .setAssetCap(ASSET_CAP);
   await tx7.wait();
   await sleep(1000);
 
   console.log("\n=== Deployment Summary ===");
   console.log("Registry:", await registry.getAddress());
-  console.log("RwiVault:", await rwiVault.getAddress());
-  console.log("Locks:", await locks.getAddress());
+  console.log("RwiVault (proxy):", await rwiVaultProxy.getAddress());
+  console.log("Locks (proxy):", await locksProxy.getAddress());
 }
 
 main()
