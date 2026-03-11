@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.28;
 
-import "./interfaces/IRegistry.sol";
+import "./interfaces/IRWIRegistry.sol";
 
 // contract indexes
 uint constant C_REGISTRY             = 1 << 0;  // 1
@@ -18,7 +18,7 @@ uint constant PAUSE_LOCKS         = 1 << 2;   // 4
 
 contract RegistryAware {
 
-  IRegistry public immutable registry;
+  IRWIRegistry public immutable registry;
 
   error Paused(uint currentState, uint checks);
   error Unauthorized(address caller, uint callerIndex, uint authorizedBitmap);
@@ -56,6 +56,6 @@ contract RegistryAware {
   }
 
   constructor(address _registry) {
-    registry = IRegistry(_registry);
+    registry = IRWIRegistry(_registry);
   }
 }
