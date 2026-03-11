@@ -11,7 +11,7 @@ export async function setup(ethers: HardhatEthers) {
     await rwaSharesMock.connect(member).mint(member.address, ethers.parseUnits("100000", 8));
   }
 
-  const registry = await ethers.deployContract('Registry', [accounts.governor.address]);
+  const registry = await ethers.deployContract('RWIRegistry', [accounts.governor.address]);
   await registry.connect(accounts.governor).addContract(ContractIndexes.A_VAULT_OPERATOR, accounts.vaultOperator, false);
   await registry.connect(accounts.governor).addContract(ContractIndexes.A_MEMBERSHIP_OPERATOR, accounts.membershipOperator, false);
   await registry.connect(accounts.governor).setEmergencyAdmin(accounts.emergencyAdmin, true);
