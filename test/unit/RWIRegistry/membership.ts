@@ -67,7 +67,7 @@ describe('membership', function () {
     expect(await registry.isMember(user.address)).to.equal(false);
   });
 
-  it('removeMemmber reverts for non-members and unauthorized senders', async function () {
+  it('removeMember reverts for non-members and unauthorized senders', async function () {
     const { accounts: { membershipOperator, governor, nonMembers }, contracts: { registry } } = await networkHelpers.loadFixture(setupFixture);
     const user = nonMembers[2];
     const outsider = nonMembers[3];
