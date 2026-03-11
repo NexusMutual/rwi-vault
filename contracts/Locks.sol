@@ -60,20 +60,20 @@ contract Locks is ILocks, RegistryAware {
   function editLock(uint lockId, uint topUpShares, uint period) external whenNotPaused(PAUSE_LOCKS) {
     uint memberId = getActiveMemberId(msg.sender);
     require(lockId < memberLocks[memberId].length, InvalidLockId());
-    require(period >= MIN_LOCK_PERIOD && period <= MAX_LOCK_PERIOD, InvalidPeriod());
-    
-    if (topUpShares > 0) {
-      IERC20(vault).safeTransferFrom(msg.sender, address(this), topUpShares);
-    }
 
     Lock memory lock = memberLocks[memberId][lockId];
     require(block.timestamp < lock.startTime + lock.period, LockExpired());
 
     lock.shares += topUpShares.toUint96();
-    uint32 passedTime = block.timestamp.toUint32() - lock.startTime;
-    lock.period = passedTime + period.toUint32();
+    lock.period += period.toUint32();
+    uint timeUntilEnd = lock.startTime + lock.period - block.timestamp;
+    require(timeUntilEnd >= MIN_LOCK_PERIOD && timeUntilEnd <= MAX_LOCK_PERIOD, InvalidPeriod());
 
     memberLocks[memberId][lockId] = lock;
+
+    if (topUpShares > 0) {
+      IERC20(vault).safeTransferFrom(msg.sender, address(this), topUpShares);
+    }
 
     emit SharesLocked(memberId, lockId, lock.shares, topUpShares, period);
   }
