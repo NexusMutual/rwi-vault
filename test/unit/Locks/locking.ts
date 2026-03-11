@@ -138,11 +138,10 @@ describe('locking', function () {
 
     await rwaSharesMock.connect(user).approve(await locks.getAddress(), topUpShares);
     await locks.connect(user).editLock(0, topUpShares, newLockPeriod);
-    const shouldEndAt = await networkHelpers.time.latest() + newLockPeriod;
 
     const memberLocks = await locks.getAllMemberLocks(memberId);
     expect(memberLocks[0].shares).to.equal(sharesToLock + topUpShares);
-    expect(memberLocks[0].startTime + memberLocks[0].period).to.equal(shouldEndAt);
+    expect(memberLocks[0].period).to.equal(lockPeriod + newLockPeriod);
   });
 
   it('lock shares on deposit can be called only by vault contract', async function () {

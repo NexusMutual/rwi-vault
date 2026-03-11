@@ -4,7 +4,7 @@ import { setup } from './setup.js';
 import { parseUsdc } from '../utils/utils.js';
 import { RequestStatus } from '../utils/constants.js';
 import { RWIVault } from '../../../types/ethers-contracts/RWIVault.js';
-import { Registry } from '../../../types/ethers-contracts/Registry.js';
+import { RWIRegistry } from '../../../types/ethers-contracts/RWIRegistry.js';
 import { ERC20Mock } from '../../../types/ethers-contracts/mock/ERC20Mock.js';
 
 const { ethers, networkHelpers } = await network.connect();
@@ -16,7 +16,7 @@ describe('redeem', function () {
   let vaultOperator : any;
   let rwiVault : RWIVault;
   let usdcMock : ERC20Mock;
-  let registry : Registry;
+  let registry : RWIRegistry;
   let user: any;
   let userShares : bigint;
 
