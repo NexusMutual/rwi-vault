@@ -131,13 +131,14 @@ contract RWIVaultFuzzTest is Setup {
 
     vm.prank(vaultOperator);
     vault.fulfillRedeems(redeemRequestId, type(uint256).max);
+    uint256 redeemedAssets = vault.convertToAssets(redeemShares);
 
     uint[] memory redeemIds = new uint[](1);
     redeemIds[0] = redeemRequestId;
     IRWIVault.RedeemRequestData[] memory redeemRequests = vault.getRedeemRequests(redeemIds);
     assertEq(uint(redeemRequests[0].status), uint(IRWIVault.RequestStatus.FULFILLED));
     assertEq(vault.balanceOf(member), totalDeposit - redeemShares);
-    assertEq(asset.balanceOf(member), memberAssetBeforeRedeem + redeemShares);
+    assertEq(asset.balanceOf(member), memberAssetBeforeRedeem + redeemedAssets);
   }
 
   function testFuzz_pendingDeposits_canBeManuallyFulfilledByOperator(
