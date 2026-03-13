@@ -37,6 +37,11 @@ const config: HardhatUserConfig = {
       chainType: "l1",
       allowUnlimitedContractSize: true,
     },
+    mainnet: {
+      type: "http",
+      chainType: "l1",
+      url: configVariable("MAINNET_RPC_URL"),
+    },
     hardhatMainnet: {
       type: "edr-simulated",
       chainType: "l1",

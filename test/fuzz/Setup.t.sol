@@ -30,7 +30,8 @@ contract Setup is Test {
     member = makeAddr("member");
 
     asset = new ERC20Mock("USDC Mock", "USDCM", 8);
-    registry = new RWIRegistry(address(this));
+    registry = new RWIRegistry();
+    registry.initialize(address(this));
     registry.addContract(A_VAULT_OPERATOR, vaultOperator, false);
     registry.addContract(A_MEMBERSHIP_OPERATOR, membershipOperator, false);
 
