@@ -37,7 +37,7 @@ describe('addContract', function () {
   it('reverts when proxy owner is not registry', async function () {
     const { accounts: { governor }, contracts: { registry } } = await networkHelpers.loadFixture(setupFixture);
 
-    const proxy = await ethers.deployContract('UpgradeableProxy');
+    const proxy = await ethers.deployContract('UpgradeableProxy', [governor.address, governor.address]);
     await expect(registry.connect(governor).addContract(2n ** 33n, await proxy.getAddress(), true))
       .to.be.revertedWithCustomError(registry, 'NotProxyOwner');
   });

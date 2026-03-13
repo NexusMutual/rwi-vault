@@ -19,6 +19,8 @@ interface IRWIRegistry {
     uint48 lastMemberId;
   }
 
+  function initialize(address governor) external;
+
   /* == EMERGENCY PAUSE == */
   function setEmergencyAdmin(address _emergencyAdmin, bool enabled) external;
   function proposePauseConfig(uint config) external;
@@ -81,6 +83,7 @@ interface IRWIRegistry {
   error InvalidAddress();
 
   error OnlyGovernor();
+  error AlreadyInitialized();
   error NotProxyOwner();
   error NotMemberRoles();
   error OnlyMembershipOperator();
