@@ -306,17 +306,6 @@ async function main() {
     locksProxySalt,
   });
 
-  if (
-    !predictedRegistryImplementationAddress.toLowerCase().startsWith(targetPrefix) ||
-    !predictedRegistryAddress.toLowerCase().startsWith(targetPrefix) ||
-    !predictedVaultImplementationAddress.toLowerCase().startsWith(targetPrefix) ||
-    !predictedLocksImplementationAddress.toLowerCase().startsWith(targetPrefix) ||
-    !predictedVaultProxy.toLowerCase().startsWith(targetPrefix) ||
-    !predictedLocksProxy.toLowerCase().startsWith(targetPrefix)
-  ) {
-    throw new Error("Resolved proxy salts do not match the requested CREATE2 address prefix");
-  }
-
   console.log(`Network: ${connection.networkName} (${networkDetails.chainId})`);
   console.log(`KMS deployer: ${kmsAddress}`);
   console.log(`Create2 factory: ${CREATE2_FACTORY_ADDRESS}`);
@@ -328,6 +317,17 @@ async function main() {
   console.log(`Predicted locks implementation: ${predictedLocksImplementationAddress}`);
   console.log(`Predicted vault proxy: ${predictedVaultProxy}`);
   console.log(`Predicted locks proxy: ${predictedLocksProxy}`);
+
+  if (
+    !predictedRegistryImplementationAddress.toLowerCase().startsWith(targetPrefix) ||
+    !predictedRegistryAddress.toLowerCase().startsWith(targetPrefix) ||
+    !predictedVaultImplementationAddress.toLowerCase().startsWith(targetPrefix) ||
+    !predictedLocksImplementationAddress.toLowerCase().startsWith(targetPrefix) ||
+    !predictedVaultProxy.toLowerCase().startsWith(targetPrefix) ||
+    !predictedLocksProxy.toLowerCase().startsWith(targetPrefix)
+  ) {
+    throw new Error("Resolved proxy salts do not match the requested CREATE2 address prefix");
+  }
 
   // Ignition expects node-managed senders, so this wrapper swaps eth_sendTransaction
   // for presigned raw transactions from the AWS KMS-backed signer.
