@@ -4,10 +4,11 @@ import { ContractIndexes } from '../utils/constants.js';
 
 const { ethers } = await network.connect();
 
-describe('RWIRegistry constructor', function () {
-  it('sets governor contract on deployment', async function () {
+describe('RWIRegistry initialize', function () {
+  it('sets governor contract on initialization', async function () {
     const [, governor] = await ethers.getSigners();
-    const registry = await ethers.deployContract('RWIRegistry', [governor.address]);
+    const registry = await ethers.deployContract('RWIRegistry');
+    await registry.getFunction('initialize')(governor.address);
 
     expect(await registry.getContractAddressByIndex(ContractIndexes.C_GOVERNOR)).to.equal(governor.address);
     expect(await registry.getContractIndexByAddress(governor.address)).to.equal(ContractIndexes.C_GOVERNOR);

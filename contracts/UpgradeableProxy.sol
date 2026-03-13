@@ -14,8 +14,10 @@ contract UpgradeableProxy is IUpgradeableProxy {
     _;
   }
 
-  constructor() {
-    _sstore(PROXY_OWNER_POSITION, msg.sender);
+  constructor(address initialOwner, address implementationAddress) {
+    _sstore(PROXY_OWNER_POSITION, initialOwner);
+    _sstore(IMPLEMENTATION_POSITION, implementationAddress);
+    emit Upgraded(implementationAddress);
   }
 
   function _sload(bytes32 position) internal view returns (address value) {

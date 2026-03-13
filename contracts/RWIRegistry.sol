@@ -46,7 +46,8 @@ contract RWIRegistry is IRWIRegistry {
     _;
   }
 
-  constructor(address governor) {
+  function initialize(address governor) external {
+    require(contracts[C_GOVERNOR].addr == address(0), AlreadyInitialized());
     _addContract(C_GOVERNOR, governor, false);
   }
 
@@ -189,8 +190,7 @@ contract RWIRegistry is IRWIRegistry {
     require(isValidContractIndex(index), InvalidContractIndex());
     require(contracts[index].addr == address(0), ContractAlreadyExists());
 
-    UpgradeableProxy proxy = new UpgradeableProxy{salt: bytes32(salt)}();
-    proxy.upgradeTo(implementation);
+    UpgradeableProxy proxy = new UpgradeableProxy{salt: bytes32(salt)}(address(this), implementation);
 
     contracts[index] = Contract({ addr: address(proxy), isProxy: true });
     contractIndexes[address(proxy)] = index;
