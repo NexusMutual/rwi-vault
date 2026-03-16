@@ -1,0 +1,19 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "FixedPointMathLib",
+  "sourceName": "contracts/external/solady/FixedPointMathLib.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "RPowOverflow",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x60556032600b8282823980515f1a607314602657634e487b7160e01b5f525f60045260245ffd5b305f52607381538281f3fe730000000000000000000000000000000000000000301460806040525f5ffdfea2646970667358221220fa9d5cc0f7a4778eb6dc291eed3fd76b6480f1ffc4b5094f46a323b2b6f4b35864736f6c634300081c0033",
+  "deployedBytecode": "0x730000000000000000000000000000000000000000301460806040525f5ffdfea2646970667358221220fa9d5cc0f7a4778eb6dc291eed3fd76b6480f1ffc4b5094f46a323b2b6f4b35864736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {},
+  "inputSourceName": "project/contracts/external/solady/FixedPointMathLib.sol",
+  "buildInfoId": "solc-0_8_28-79a37bea60508f9fa96d334cdee45a3df0543761"
+}

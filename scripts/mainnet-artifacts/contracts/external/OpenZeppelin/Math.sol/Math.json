@@ -1,0 +1,13 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "Math",
+  "sourceName": "contracts/external/OpenZeppelin/Math.sol",
+  "abi": [],
+  "bytecode": "0x60556032600b8282823980515f1a607314602657634e487b7160e01b5f525f60045260245ffd5b305f52607381538281f3fe730000000000000000000000000000000000000000301460806040525f5ffdfea2646970667358221220fac68a1f96de59fb1e756cd615622e38da47ff339880da0182af2792c277cec764736f6c634300081c0033",
+  "deployedBytecode": "0x730000000000000000000000000000000000000000301460806040525f5ffdfea2646970667358221220fac68a1f96de59fb1e756cd615622e38da47ff339880da0182af2792c277cec764736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {},
+  "inputSourceName": "project/contracts/external/OpenZeppelin/Math.sol",
+  "buildInfoId": "solc-0_8_28-79a37bea60508f9fa96d334cdee45a3df0543761"
+}

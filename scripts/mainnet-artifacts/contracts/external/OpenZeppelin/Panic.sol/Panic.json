@@ -1,0 +1,13 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "Panic",
+  "sourceName": "contracts/external/OpenZeppelin/Panic.sol",
+  "abi": [],
+  "bytecode": "0x60556032600b8282823980515f1a607314602657634e487b7160e01b5f525f60045260245ffd5b305f52607381538281f3fe730000000000000000000000000000000000000000301460806040525f5ffdfea26469706673582212200578a462df549f39a9ffc96b0c2f8c4d64407952bdfc179f752137eeeb9c808964736f6c634300081c0033",
+  "deployedBytecode": "0x730000000000000000000000000000000000000000301460806040525f5ffdfea26469706673582212200578a462df549f39a9ffc96b0c2f8c4d64407952bdfc179f752137eeeb9c808964736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {},
+  "inputSourceName": "project/contracts/external/OpenZeppelin/Panic.sol",
+  "buildInfoId": "solc-0_8_28-79a37bea60508f9fa96d334cdee45a3df0543761"
+}

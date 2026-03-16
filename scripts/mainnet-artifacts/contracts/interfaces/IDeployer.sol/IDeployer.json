@@ -1,0 +1,55 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "IDeployer",
+  "sourceName": "contracts/interfaces/IDeployer.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "code",
+          "type": "bytes"
+        },
+        {
+          "internalType": "uint256",
+          "name": "salt",
+          "type": "uint256"
+        }
+      ],
+      "name": "deploy",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "code",
+          "type": "bytes"
+        },
+        {
+          "internalType": "uint256",
+          "name": "salt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "expectedAddress",
+          "type": "address"
+        }
+      ],
+      "name": "deployAt",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {},
+  "inputSourceName": "project/contracts/interfaces/IDeployer.sol",
+  "buildInfoId": "solc-0_8_28-3dff9d61f6fe1de5023486fe0c458e4e34683028"
+}
