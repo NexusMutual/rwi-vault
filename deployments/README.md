@@ -1,6 +1,6 @@
-# RWA Vault Deployments
+# RWI Vault Deployments
 
-This package contains ABIs, deployed addresses, and contract types for the deployed RWA Vault contracts.
+This package contains ABIs, deployed addresses, and contract types for the deployed RWI Vault contracts.
 
 ## Usage
 
@@ -10,7 +10,7 @@ This package contains ABIs, deployed addresses, and contract types for the deplo
 Contains addresses for `RWIRegistry`, `RWIVault`, and `Locks`.
 
 ```ts
-import { addresses } from "@nexusmutual/rwa-vault-deployments";
+import { addresses } from "@nexusmutual/rwi-vault-deployments";
 
 console.log(addresses.RWIVault);
 ```
@@ -19,7 +19,7 @@ console.log(addresses.RWIVault);
 A map containing ABI definitions for all exported contracts.
 
 ```ts
-import { abis } from "@nexusmutual/rwa-vault-deployments";
+import { abis } from "@nexusmutual/rwi-vault-deployments";
 
 console.log(abis.RWIRegistry);
 ```
