@@ -19,7 +19,7 @@ function getArtifactPath(contractName) {
 }
 
 function getTypePath(contractName) {
-  return path.join(rootDir, "types", "ethers-contracts", "contracts", `${contractName}.ts`);
+  return path.join(rootDir, "types", "ethers-contracts", `${contractName}.ts`);
 }
 
 function getMainnetDeploymentId() {
