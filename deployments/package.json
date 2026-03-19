@@ -1,0 +1,31 @@
+{
+  "name": "@nexusmutual/rwa-vault-deployments",
+  "description": "RWA Vault deployed contract addresses and abis",
+  "typings": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NexusMutual/rwa-vault.git"
+  },
+  "keywords": [
+    "rwa-vault",
+    "rwa",
+    "vault",
+    "deployments",
+    "contracts"
+  ],
+  "author": "nexusmutual",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/NexusMutual/rwa-vault/issues"
+  },
+  "homepage": "https://github.com/NexusMutual/rwa-vault#readme",
+  "scripts": {
+    "build": "node ./build.mjs",
+    "sync-addresses": "node ./scripts/sync-addresses.mjs"
+  }
+}

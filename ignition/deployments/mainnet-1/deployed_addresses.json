@@ -1,0 +1,11 @@
+{
+  "MainnetDeploymentModule#IDeployer": "0xfac7011663910F75CbE1E25539ec2D7529f93C3F",
+  "MainnetDeploymentModule#temporaryRegistryImplementation": "0x59Ec96568BD4d46eCEEf4815e790A764200c15A2",
+  "MainnetDeploymentModule#registryProxy": "0xcafeA3066fcB2050871630F76e894959223e1F56",
+  "MainnetDeploymentModule#registryProxyAdmin": "0xcafeA3066fcB2050871630F76e894959223e1F56",
+  "MainnetDeploymentModule#vaultImplementation": "0xcafEA69A6a99F590701FD22e900712601bD82aca",
+  "MainnetDeploymentModule#vaultProxy": "0xcAFeAA466736ac01e0AC9Ca72644beF348694731",
+  "MainnetDeploymentModule#locksImplementation": "0xcafEa8B3109C9c6b764525466bB6da9FE2aFb56D",
+  "MainnetDeploymentModule#locksProxy": "0xCAfea9Fdd3697990ae9E004182C4F89C05BCcAa2",
+  "MainnetDeploymentModule#registryImplementation": "0xCAfEa926B15B367477Aa0fb9aC29D81608387085"
+}
