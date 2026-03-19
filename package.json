@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "npx hardhat test",
-    "test:coverage": "COVERAGE=1 npx hardhat test --coverage"
+    "test:coverage": "COVERAGE=1 npx hardhat test --coverage",
+    "deployments:build": "node ./deployments/build.mjs",
+    "deployments:sync-addresses": "node ./deployments/scripts/sync-addresses.mjs"
   },
   "devDependencies": {
     "@nexusmutual/ethers-v6-aws-kms-signer": "^0.0.3",
