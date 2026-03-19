@@ -27,5 +27,6 @@
   "scripts": {
     "build": "node ./build.mjs",
     "sync-addresses": "node ./scripts/sync-addresses.mjs"
-  }
+  },
+  "version": "1.0.0"
 }
