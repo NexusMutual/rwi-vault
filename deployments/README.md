@@ -46,7 +46,7 @@ This will:
 
 - read `ignition/deployments/mainnet-<id>/deployed_addresses.json`,
 - generate ABI exports from existing artifacts,
-- copy contract type declarations from existing generated ethers types,
+- generate typed package entrypoints via `tsup` from `src/index.ts`,
 - build package outputs in `deployments/dist`.
 
 By default, `<id>` is `1`. You can override it by setting `MAINNET_DEPLOYMENT_ID`.

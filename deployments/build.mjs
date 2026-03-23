@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "tsup";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,10 +17,6 @@ const deploymentAddressKeys = {
 
 function getArtifactPath(contractName) {
   return path.join(rootDir, "artifacts", "contracts", `${contractName}.sol`, `${contractName}.json`);
-}
-
-function getTypePath(contractName) {
-  return path.join(rootDir, "types", "ethers-contracts", `${contractName}.ts`);
 }
 
 function getMainnetDeploymentId() {
@@ -77,59 +74,35 @@ async function generateAbisTs() {
   await writeFile(path.join(generatedDir, "abis.ts"), `${lines.join("\n")}\n`);
 }
 
-async function generateTypes() {
-  const generatedTypesDir = path.join(deploymentsPackageDir, "generated", "types");
-  await mkdir(generatedTypesDir, { recursive: true });
-
-  for (const contractName of contractNames) {
-    await cp(getTypePath(contractName), path.join(generatedTypesDir, `${contractName}.ts`));
-  }
+async function generateAddressesSource() {
+  const generatedDir = path.join(deploymentsPackageDir, "generated");
+  const deployedAddresses = JSON.parse(await readFile(getDeployedAddressesPath(), "utf8"));
+  const mappedAddresses = Object.fromEntries(
+    contractNames.map((contractName) => [contractName, deployedAddresses[deploymentAddressKeys[contractName]] ?? ""]),
+  );
+  await mkdir(generatedDir, { recursive: true });
+  await writeFile(path.join(generatedDir, "addresses.json"), `${JSON.stringify(mappedAddresses, null, 2)}\n`);
 }
 
-async function copyDistTypes() {
-  const distDir = path.join(deploymentsPackageDir, "dist");
-  const distTypesDir = path.join(distDir, "types");
-  await mkdir(distTypesDir, { recursive: true });
-
-  const commonSource = path.join(rootDir, "types", "ethers-contracts", "common.ts");
-  const commonContent = await readFile(commonSource, "utf8");
-  await writeFile(path.join(distDir, "common.d.ts"), commonContent);
-
-  for (const contractName of contractNames) {
-    const typeContent = await readFile(path.join(deploymentsPackageDir, "generated", "types", `${contractName}.ts`), "utf8");
-    await writeFile(path.join(distTypesDir, `${contractName}.d.ts`), typeContent);
-  }
-}
-
-async function generateDistEntrypoints() {
-  const distDir = path.join(deploymentsPackageDir, "dist");
-  await mkdir(distDir, { recursive: true });
-
-  await writeFile(
-    path.join(distDir, "index.js"),
-    "module.exports = { addresses: require('./data/addresses.json'), abis: require('./data/abis/index.json') };",
-  );
-  await writeFile(
-    path.join(distDir, "index.mjs"),
-    "export { default as addresses } from './data/addresses.json' with { type: 'json' };\nexport { default as abis } from './data/abis/index.json' with { type: 'json' };\n",
-  );
-  await writeFile(
-    path.join(distDir, "index.d.ts"),
-    "export declare const addresses: Record<string, string>;\nexport declare const abis: Record<string, readonly unknown[]>;\n",
-  );
+async function buildSource() {
+  await build({
+    entry: [path.join(deploymentsPackageDir, "src", "index.ts")],
+    outDir: path.join(deploymentsPackageDir, "dist"),
+    tsconfig: path.join(deploymentsPackageDir, "tsconfig.json"),
+    format: ["cjs", "esm"],
+    outExtension: ({ format }) => ({ js: format === "cjs" ? ".js" : ".mjs" }),
+    splitting: false,
+    sourcemap: true,
+    clean: true,
+    dts: true,
+  });
 }
 
 async function copyDistData() {
   const distDataDir = path.join(deploymentsPackageDir, "dist", "data");
   const distAbisDir = path.join(distDataDir, "abis");
-  await mkdir(distDataDir, { recursive: true });
   await mkdir(distAbisDir, { recursive: true });
-
-  const deployedAddresses = JSON.parse(await readFile(getDeployedAddressesPath(), "utf8"));
-  const addresses = Object.fromEntries(
-    contractNames.map((contractName) => [contractName, deployedAddresses[deploymentAddressKeys[contractName]] ?? ""]),
-  );
-  await writeFile(path.join(distDataDir, "addresses.json"), `${JSON.stringify(addresses, null, 2)}\n`);
+  await cp(path.join(deploymentsPackageDir, "generated", "addresses.json"), path.join(distDataDir, "addresses.json"));
 
   const abis = {};
   for (const contractName of contractNames) {
@@ -147,10 +120,9 @@ async function main() {
   await updatePackageVersion();
   await generateAbis();
   await generateAbisTs();
-  await generateTypes();
+  await generateAddressesSource();
+  await buildSource();
   await copyDistData();
-  await generateDistEntrypoints();
-  await copyDistTypes();
 
   console.log("Deployments package build complete.");
 }

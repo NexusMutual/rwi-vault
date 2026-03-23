@@ -25,8 +25,7 @@
   },
   "homepage": "https://github.com/NexusMutual/rwa-vault#readme",
   "scripts": {
-    "build": "node ./build.mjs",
-    "sync-addresses": "node ./scripts/sync-addresses.mjs"
+    "build": "node ./build.mjs"
   },
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
