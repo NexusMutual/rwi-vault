@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "dependencies": {
     "@openzeppelin/contracts-upgradeable": "^5.4.0",
     "hardhat": "^3.0.0"
@@ -8,8 +8,7 @@
   "scripts": {
     "test": "npx hardhat test",
     "test:coverage": "COVERAGE=1 npx hardhat test --coverage",
-    "deployments:build": "node ./deployments/build.mjs",
-    "deployments:sync-addresses": "node ./deployments/scripts/sync-addresses.mjs"
+    "deployments:build": "node ./deployments/build.mjs"
   },
   "devDependencies": {
     "@nexusmutual/ethers-v6-aws-kms-signer": "^0.0.3",
@@ -27,6 +26,7 @@
     "ethers": "^6.15.0",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "mocha": "^11.7.1",
+    "tsup": "^8.5.1",
     "typescript": "~5.8.0"
   }
 }
