@@ -22,6 +22,9 @@ contract RWIRegistry is IRWIRegistry {
   mapping(address => bool) public isEmergencyAdmin;
   SystemPause internal systemPause; // 3 slots
 
+  // membership add-on
+  mapping (address member => bool used) internal wasAddressUsedForJoining;
+
   modifier onlyGovernor() {
     address governor = contracts[C_GOVERNOR].addr;
     require(msg.sender == governor, OnlyGovernor());
@@ -112,11 +115,14 @@ contract RWIRegistry is IRWIRegistry {
   function addMember(address member) external onlyMembershipOperator {
     require(memberIds[member] == 0, AlreadyMember());
     require(member != address(0), InvalidAddress());
+    require(wasAddressUsedForJoining[member] == false, AddressAlreadyUsedForJoining());
+    
 
     uint memberId = ++membersMeta.lastMemberId;
     ++membersMeta.memberCount;
     memberIds[member] = memberId;
     members[memberId] = member;
+    wasAddressUsedForJoining[member] = true;
 
     emit MembershipChanged(memberId, address(0), member);
   }
@@ -143,7 +149,7 @@ contract RWIRegistry is IRWIRegistry {
     delete memberIds[member];
     --membersMeta.memberCount;
 
-    emit MembershipChanged(memberId, msg.sender, address(0));
+    emit MembershipChanged(memberId, member, address(0));
   }
 
   /* == CONTRACT MANAGEMENT == */
@@ -234,5 +240,12 @@ contract RWIRegistry is IRWIRegistry {
     delete contracts[index];
 
     emit ContractRemoved(index, _contract.addr, _contract.isProxy);
+  }
+
+  // temporary function to mark addresses as used for joining
+  function markAddressesUsedForJoining(address[] calldata addresses) external onlyGovernor {
+    for (uint i = 0; i < addresses.length; i++) {
+      wasAddressUsedForJoining[addresses[i]] = true;
+    }
   }
 }
