@@ -4,7 +4,7 @@ The Real World Insurance Vault (“RWI Vault”) allows sophisticated investors 
 
 The Vault is deployed on Ethereum mainnet with infrastructure based on the ERC-7540 standard. The underlying returns are sourced by providing solvency capital and reserves off-chain to back regulated insurance policies.
 
-[Read more in the docs](https://docs.nexusmutual.io/rwi-vault/), or go straight to the [contract reference](https://docs.nexusmutual.io/developers/rwi-vault/).
+[Read more in the docs](https://docs.nexusmutual.io/rwi-vault/).
 
 ## Getting started
 
