@@ -21,5 +21,5 @@ The source for that package lives in this repo under `deployments/`. After a mai
 
 ## Audits
 
-- RWI Vault audit report: **TBD**. 
+- [Nexus Mutual RWI Vault Smart Contract Audit](https://iosiro.com/audits/nexus-mutual-rwi-vault-smart-contract-audit) — iosiro, September 2025 to March 2026, covering the initial audit and four follow-up changes
 - [Check the docs for a full list of Nexus Mutual security audits](https://docs.nexusmutual.io/resources/audits-and-security)
