@@ -6,6 +6,9 @@
     "hardhat": "^3.0.0"
   },
   "type": "module",
+  "engines": {
+    "node": ">=22.10.0 <22.18.0"
+  },
   "scripts": {
     "test": "npx hardhat test",
     "test:coverage": "COVERAGE=1 npx hardhat test --coverage",
