@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Collapse routine development-dependency version bumps into a single PR.
+      # Security updates use `applies-to: security-updates` and are excluded here,
+      # so they continue to arrive as their own individual pull requests.
+      development-dependencies:
+        dependency-type: "development"
