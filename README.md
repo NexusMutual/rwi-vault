@@ -1,5 +1,7 @@
 # [Real World Insurance Vault](https://app.nexusmutual.io/vault/)
 
+[![CI](https://github.com/NexusMutual/rwi-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/NexusMutual/rwi-vault/actions/workflows/ci.yml)
+
 The Real World Insurance Vault (“RWI Vault”) allows sophisticated investors to earn yield on their USDC.
 
 The Vault is deployed on Ethereum mainnet with infrastructure based on the ERC-7540 standard. The underlying returns are sourced by providing solvency capital and reserves off-chain to back regulated insurance policies.
