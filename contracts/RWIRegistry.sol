@@ -20,7 +20,7 @@ contract RWIRegistry is IRWIRegistry {
 
   // emergency pause
   mapping(address => bool) public isEmergencyAdmin;
-  SystemPause internal systemPause; // 3 slots
+  SystemPause internal systemPause; // 1 slot
 
   // membership add-on
   mapping (address member => bool used) internal wasAddressUsedForJoining;
@@ -116,7 +116,6 @@ contract RWIRegistry is IRWIRegistry {
     require(memberIds[member] == 0, AlreadyMember());
     require(member != address(0), InvalidAddress());
     require(wasAddressUsedForJoining[member] == false, AddressAlreadyUsedForJoining());
-    
 
     uint memberId = ++membersMeta.lastMemberId;
     ++membersMeta.memberCount;
