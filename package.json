@@ -12,6 +12,7 @@
   "scripts": {
     "test": "npx hardhat test",
     "test:coverage": "COVERAGE=1 npx hardhat test --coverage",
+    "typecheck": "npx hardhat build && npm run deployments:build && tsc --noEmit",
     "deployments:build": "node ./deployments/build.mjs"
   },
   "devDependencies": {
