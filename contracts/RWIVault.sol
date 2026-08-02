@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import "./ERC7540.sol";
 import "./external/OpenZeppelin/Math.sol";
-import "./external/OpenZeppelin/SafeERC20.sol";
 import "./external/OpenZeppelin/SafeCast.sol";
+import "./external/OpenZeppelin/SafeERC20.sol";
 import "./external/solady/FixedPointMathLib.sol";
 
-import "./interfaces/IRWIVault.sol";
 import "./interfaces/ILocks.sol";
+import "./interfaces/IRWIVault.sol";
 import "./RegistryAware.sol";
-import "./ERC7540.sol";
 
 contract RWIVault is IRWIVault, ERC7540, RegistryAware {
   using SafeERC20 for IERC20;

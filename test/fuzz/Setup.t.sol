@@ -3,12 +3,12 @@ pragma solidity ^0.8.28;
 
 import "forge-std/src/Test.sol";
 
-import "../../contracts/RWIRegistry.sol";
-import "../../contracts/RWIVault.sol";
-import "../../contracts/Locks.sol";
 import "../../contracts/interfaces/ILocks.sol";
 import "../../contracts/interfaces/IRWIVault.sol";
+import "../../contracts/Locks.sol";
 import { ERC20Mock } from "../../contracts/mock/ERC20Mock.sol";
+import "../../contracts/RWIRegistry.sol";
+import "../../contracts/RWIVault.sol";
 
 
 contract Setup is Test {

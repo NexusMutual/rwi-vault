@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import "./ERC20.sol";
 import "./external/OpenZeppelin/Math.sol";
 import "./interfaces/IERC7540.sol";
-import "./ERC20.sol";
 
 abstract contract ERC7540 is IERC7540, ERC20 {
 
