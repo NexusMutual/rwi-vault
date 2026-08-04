@@ -19,7 +19,7 @@ The Vault is deployed on Ethereum mainnet with infrastructure based on the ERC-7
 
 Published addresses and contract ABIs for integrators are shipped as [`@nexusmutual/rwi-vault-deployments`](https://www.npmjs.com/package/@nexusmutual/rwi-vault-deployments) on npm.
 
-The source for that package lives in this repo under `deployments/`. After a mainnet deployment run `npm run deployments:build` from the repository root to regenerate the package artifacts from Ignition outputs and contract artifacts.
+The source for that package lives in this repo under `deployments/`. After a mainnet deployment run `pnpm run deployments:build` from the repository root to regenerate the package artifacts from Ignition outputs and contract artifacts.
 
 ## Audits
 
