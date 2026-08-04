@@ -37,15 +37,9 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
-  build-and-test:
-    name: build & test (node ${{ matrix.node-version }})
+  build:
+    name: build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Endpoints of the `engines.node` range (>=22.10.0 <22.18.0).
-        # Running both confirms the supported range holds.
-        node-version: ["22.10.0", "22.17.1"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,25 +49,32 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Build contracts
+      - name: Build
         run: pnpm exec hardhat build
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Test
         run: pnpm test
-
-  # Single aggregate context so a branch ruleset can require `test` without
-  # naming each matrix leg.
-  test:
-    name: test
-    needs: build-and-test
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify matrix result
-        run: '[ "${{ needs.build-and-test.result }}" = "success" ]'
