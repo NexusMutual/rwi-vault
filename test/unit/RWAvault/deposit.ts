@@ -4,7 +4,7 @@ import { setup } from './setup.js';
 import { parseUsdc } from '../utils/utils.js';
 import { RequestStatus } from '../utils/constants.js';
 import { RWIVault } from '../../../types/ethers-contracts/RWIVault.js';
-import { Registry } from '../../../types/ethers-contracts/Registry.js';
+import { RWIRegistry } from '../../../types/ethers-contracts/RWIRegistry.js';
 
 const { ethers, networkHelpers } = await network.connect();
 const { duration } = networkHelpers.time;
@@ -189,7 +189,7 @@ describe('deposit', function () {
     let user : any;
     let vaultOperator : any;
     let rwiVault : RWIVault;
-    let registry : Registry;
+    let registry : RWIRegistry;
     const depositAmount = parseUsdc("1000");
 
     beforeEach(async function () {

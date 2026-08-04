@@ -4,8 +4,8 @@
 pragma solidity ^0.8.20;
 
 import {IERC20} from "./external/OpenZeppelin/interfaces/IERC20.sol";
-import {IERC20Metadata} from "./external/OpenZeppelin/interfaces/IERC20Metadata.sol";
 import {IERC20Errors} from "./external/OpenZeppelin/interfaces/IERC20Errors.sol";
+import {IERC20Metadata} from "./external/OpenZeppelin/interfaces/IERC20Metadata.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface.

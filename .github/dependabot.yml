@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Collapse routine development-dependency version bumps into a single PR.
+      development-dependencies:
+        dependency-type: "development"
+      # Collapse security updates into a single PR so they don't pile up
+      # individually (as #32–#37 did).
+      security-updates:
+        applies-to: security-updates
+        patterns: ["*"]

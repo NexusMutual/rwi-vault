@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "./external/OpenZeppelin/SafeERC20.sol";
 import "./external/OpenZeppelin/SafeCast.sol";
+import "./external/OpenZeppelin/SafeERC20.sol";
 
 import "./interfaces/ILocks.sol";
 import "./RegistryAware.sol";
