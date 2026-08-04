@@ -109,3 +109,12 @@ jobs:
           name: coverage-lcov
           path: coverage/lcov*.info
           if-no-files-found: error
+
+      # Reports the first-party figure, not the raw lcov — the raw one counts
+      # vendored sources and reads ~47% against ~94% for contracts we own.
+      - name: Report to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage/lcov.first-party.info
+          format: lcov

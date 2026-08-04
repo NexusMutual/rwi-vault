@@ -1,6 +1,7 @@
 # [Real World Insurance Vault](https://app.nexusmutual.io/vault/)
 
 [![CI](https://github.com/NexusMutual/rwi-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/NexusMutual/rwi-vault/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/NexusMutual/rwi-vault/badge.svg)](https://coveralls.io/github/NexusMutual/rwi-vault)
 
 The Real World Insurance Vault (“RWI Vault”) allows sophisticated investors to earn yield on their USDC.
 
