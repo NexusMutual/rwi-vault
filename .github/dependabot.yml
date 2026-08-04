@@ -7,7 +7,10 @@ updates:
     open-pull-requests-limit: 10
     groups:
       # Collapse routine development-dependency version bumps into a single PR.
-      # Security updates use `applies-to: security-updates` and are excluded here,
-      # so they continue to arrive as their own individual pull requests.
       development-dependencies:
         dependency-type: "development"
+      # Collapse security updates into a single PR so they don't pile up
+      # individually (as #32–#37 did).
+      security-updates:
+        applies-to: security-updates
+        patterns: ["*"]
