@@ -62,7 +62,9 @@ describe('membership', function () {
 
     await registry.connect(membershipOperator).addMember(user.address);
     const memberId = await registry.getMemberId(user.address);
-    await registry.connect(membershipOperator).removeMember(memberId);
+    await expect(registry.connect(membershipOperator).removeMember(memberId))
+      .to.emit(registry, 'MembershipChanged')
+      .withArgs(memberId, user.address, ethers.ZeroAddress);
 
     expect(await registry.isMember(user.address)).to.equal(false);
   });
@@ -77,6 +79,18 @@ describe('membership', function () {
     await registry.connect(membershipOperator).addMember(user.address);
     const memberId = await registry.getMemberId(user.address);
     await expect(registry.connect(outsider).removeMember(memberId)).to.be.revertedWithCustomError(registry, 'OnlyMemberOrOperator');
+  });
+
+  it('addMember reverts if address is already used for joining', async function () {
+    const { accounts: { membershipOperator, nonMembers }, contracts: { registry } } = await networkHelpers.loadFixture(setupFixture);
+    const user = nonMembers[1];
+
+    await registry.connect(membershipOperator).addMember(user.address);
+    const memberId = await registry.getMemberId(user.address);
+    await registry.connect(membershipOperator).removeMember(memberId);
+    await expect(registry.connect(membershipOperator).addMember(user.address))
+      .to.be.revertedWithCustomError(registry, 'AddressAlreadyUsedForJoining');
+
   });
 
   it('allows changing member address while keeping member id', async function () {
@@ -117,4 +131,25 @@ describe('membership', function () {
     await expect(registry.connect(alice).changeMemberAddress(bob.address))
       .to.be.revertedWithCustomError(registry, 'AlreadyMember');
   });
+
+  // temporary test to check if markAddressesUsedForJoining fills wasAddressUsedForJoining mapping
+  it('markAddressesUsedForJoining fills wasAddressUsedForJoining mapping', async function () {
+    const { accounts: { governor, nonMembers, membershipOperator }, contracts: { registry } } = await networkHelpers.loadFixture(setupFixture);
+    const addresses = [nonMembers[0].address, nonMembers[1].address, nonMembers[2].address];
+    await registry.connect(governor).markAddressesUsedForJoining(addresses);
+    
+    await expect(registry.connect(membershipOperator).addMember(addresses[0]))
+      .to.be.revertedWithCustomError(registry, 'AddressAlreadyUsedForJoining');
+    await expect(registry.connect(membershipOperator).addMember(addresses[1]))
+      .to.be.revertedWithCustomError(registry, 'AddressAlreadyUsedForJoining');
+    await expect(registry.connect(membershipOperator).addMember(addresses[2]))
+      .to.be.revertedWithCustomError(registry, 'AddressAlreadyUsedForJoining');
+  });
+
+  it('markAddressesUsedForJoining reverts for non-governor', async function () {
+    const { accounts: { nonMembers }, contracts: { registry } } = await networkHelpers.loadFixture(setupFixture);
+    await expect(registry.connect(nonMembers[0]).markAddressesUsedForJoining([nonMembers[1].address]))
+      .to.be.revertedWithCustomError(registry, 'OnlyGovernor');
+  });
+  
 });

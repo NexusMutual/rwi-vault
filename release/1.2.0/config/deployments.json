@@ -1,0 +1,8 @@
+{
+  "RWIRegistry": {
+    "expectedAddress": "0xCafeA67428e42490f8cd567dbb18bde8311E149d",
+    "salt": "0x500bcfe2104d6b4d435c0d9c3ad511609d86c95625d4c53a6015c7651b2b2cbd",
+    "nonce": 128966,
+    "constructorArgs": []
+  }
+}

@@ -81,6 +81,7 @@ interface IRWIRegistry {
   error NotMember();
   error AlreadyMember();
   error InvalidAddress();
+  error AddressAlreadyUsedForJoining();
 
   error OnlyGovernor();
   error AlreadyInitialized();
