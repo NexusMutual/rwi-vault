@@ -10,7 +10,7 @@ import {
   errorDeploymentResultToExceptionMessage,
 } from "@nomicfoundation/hardhat-ignition/helpers";
 import { BrowserProvider, id } from "ethers";
-import { artifacts, network } from "hardhat";
+import { artifacts, interruptions, network } from "hardhat";
 
 import MainnetDeploymentModule from "../ignition/modules/MainnetDeployment.js";
 import {
@@ -369,7 +369,7 @@ async function main() {
   const result = await deploy({
     artifactResolver: new HardhatArtifactResolver(artifacts),
     provider: ignitionProvider,
-    executionEventListener: new PrettyEventHandler(deploymentParameters),
+    executionEventListener: new PrettyEventHandler(interruptions, { deploymentParams: deploymentParameters }),
     deploymentDir,
     ignitionModule: MainnetDeploymentModule,
     deploymentParameters,
