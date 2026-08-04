@@ -10,16 +10,16 @@ The Vault is deployed on Ethereum mainnet with infrastructure based on the ERC-7
 
 ## Getting started
 
-- **Requirements**: Node.js `>=22.10.0 <22.18.0` (tested through v22.17.1; Node 22.18+, 23.x, and 24.x fail `npm test` due to a Mocha/`require(esm)` loader bug)
-- **Install**: `npm install`
-- **Build**: `npx hardhat build`
-- **Test**: `npm test`
+- **Requirements**: Node.js `>=22.10.0 <22.18.0` (tested through v22.17.1; Node 22.18+, 23.x, and 24.x fail `pnpm test` due to a Mocha/`require(esm)` loader bug)
+- **Install**: `pnpm install`
+- **Build**: `pnpm exec hardhat build`
+- **Test**: `pnpm test`
 
 ## Deployed addresses and ABIs
 
 Published addresses and contract ABIs for integrators are shipped as [`@nexusmutual/rwi-vault-deployments`](https://www.npmjs.com/package/@nexusmutual/rwi-vault-deployments) on npm.
 
-The source for that package lives in this repo under `deployments/`. After a mainnet deployment run `npm run deployments:build` from the repository root to regenerate the package artifacts from Ignition outputs and contract artifacts.
+The source for that package lives in this repo under `deployments/`. After a mainnet deployment run `pnpm run deployments:build` from the repository root to regenerate the package artifacts from Ignition outputs and contract artifacts.
 
 ## Audits
 
