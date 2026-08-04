@@ -67,8 +67,8 @@ jobs:
       - name: Test
         run: pnpm test
 
-  # Single aggregate context so the org `master-and-dev` ruleset can require
-  # `test` without naming each matrix leg.
+  # Single aggregate context so a branch ruleset can require `test` without
+  # naming each matrix leg.
   test:
     name: test
     needs: build-and-test
