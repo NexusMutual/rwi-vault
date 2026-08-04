@@ -13,6 +13,7 @@
   "scripts": {
     "test": "hardhat test",
     "test:coverage": "COVERAGE=1 hardhat test --coverage",
+    "coverage:summary": "node ./scripts/coverage-summary.mjs",
     "lint": "slippy \"contracts/**/*.sol\" \"test/**/*.sol\"",
     "typecheck": "hardhat build && pnpm run deployments:build && tsc --noEmit",
     "deployments:build": "node ./deployments/build.mjs"
