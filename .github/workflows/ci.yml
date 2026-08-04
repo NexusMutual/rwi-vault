@@ -113,7 +113,8 @@ jobs:
       # Reports the first-party figure, not the raw lcov — the raw one counts
       # vendored sources and reads ~47% against ~94% for contracts we own.
       - name: Report to Coveralls
-        uses: coverallsapp/github-action@v2
+        # Pinned: this is the only action here that receives a credential.
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Required for Coveralls to post the coverage/coveralls status back;
