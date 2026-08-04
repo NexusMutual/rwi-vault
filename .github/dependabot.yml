@@ -18,3 +18,15 @@ updates:
       security-updates:
         applies-to: security-updates
         patterns: ["*"]
+
+  # Keeps the pinned action SHA current; Dependabot rewrites the pin and the
+  # trailing version comment together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 1
+    groups:
+      github-actions:
+        patterns: ["*"]
