@@ -89,7 +89,7 @@ describe('membership', function () {
     const memberId = await registry.getMemberId(user.address);
     await registry.connect(membershipOperator).removeMember(memberId);
     await expect(registry.connect(membershipOperator).addMember(user.address))
-      .to.be.revertedWithCustomError(registry, 'AddressAlreadyUsedForJoining');;
+      .to.be.revertedWithCustomError(registry, 'AddressAlreadyUsedForJoining');
 
   });
 
