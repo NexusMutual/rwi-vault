@@ -1,0 +1,93 @@
+# Release Next Workflow
+#
+# Publishes a release-candidate version of @nexusmutual/rwi-vault-deployments to
+# npm with the '@next' tag. Triggered manually via workflow_dispatch.
+#
+# Behaviour:
+# - Checks whether commits since the last tag trigger a version bump
+# - If they do, determines the next RC number and publishes {version}-rc{n}
+#   (1.2.0-rc1, 1.2.0-rc2, ...)
+# - If they do not, the workflow exits without publishing
+#
+# This workflow commits nothing. The version in package.json is changed only for
+# the duration of the publish; the real bump commit happens in release.yml.
+
+name: Release Next
+
+on:
+  workflow_dispatch:
+
+# Serialised with release.yml: both publish the same package and derive
+# versions from the same tags, so they must not run concurrently.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # Determines whether commits since the last tag warrant a version bump.
+  # Outputs: bump_type (major|minor|patch), triggers_bump (true|false)
+  check-version-bump:
+    uses: NexusMutual/workflows/.github/workflows/check-version-bump.yml@master
+    with:
+      ref: ${{ github.ref_name }}
+      environment: production
+      bump-command: |
+        timeout 5s npx conventional-recommended-bump --config .github/config/conventional-bump-setup.js
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  # Works out the next RC number for this base version.
+  # Outputs: rc_version (e.g. 1.2.0-rc1)
+  rc-version:
+    needs: check-version-bump
+    if: needs.check-version-bump.outputs.triggers_bump == 'true'
+    uses: NexusMutual/workflows/.github/workflows/determine-rc-version.yml@master
+    with:
+      package-name: "@nexusmutual/rwi-vault-deployments"
+      bump-type: ${{ needs.check-version-bump.outputs.bump_type }}
+
+  publish-deployments-next:
+    needs: rc-version
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # Ephemeral, for the publish only — not committed.
+      - name: RC version bump
+        env:
+          RC_VERSION: ${{ needs.rc-version.outputs.rc_version }}
+        # deployments/build.mjs copies the root version into the package, so
+        # bumping it here is enough.
+        run: npm version "$RC_VERSION" --no-git-tag-version
+
+      # deployments/build.mjs reads contract artifacts, so compile first
+      - name: Build contracts
+        run: pnpm exec hardhat build
+
+      - name: Build deployments
+        run: pnpm run deployments:build
+
+      - name: Publish to npm with @next tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm run deployments:publish:next
