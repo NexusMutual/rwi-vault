@@ -1,0 +1,134 @@
+# Release Workflow
+#
+# Creates a stable release and publishes @nexusmutual/rwi-vault-deployments to
+# npm with the '@latest' tag. Triggered manually via workflow_dispatch.
+#
+# Behaviour:
+# - Checks whether commits on dev since the last tag trigger a version bump,
+#   using conventional commits
+# - If they do:
+#   - Bumps the version in the root and deployments package.json on dev
+#   - Fast-forwards master to dev so master holds the released state
+#   - Publishes the deployments package to npm with '@latest'
+#   - Creates a git tag and a GitHub release with notes
+# - If they do not, the workflow fails and nothing is published or tagged
+#
+# dev is the integration branch here, taking the role release-candidate plays
+# in smart-contracts.
+
+name: Release
+
+on:
+  workflow_dispatch:
+
+# Serialised with release-next.yml: both publish the same package and derive
+# versions from the same tags, so they must not run concurrently.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # Determines whether commits since the last tag warrant a version bump.
+  # Outputs: bump_type (major|minor|patch), triggers_bump (true|false)
+  check-version-bump:
+    uses: NexusMutual/workflows/.github/workflows/check-version-bump.yml@master
+    with:
+      ref: dev
+      environment: production
+      bump-command: |
+        timeout 5s npx conventional-recommended-bump --config .github/config/conventional-bump-setup.js
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  # Stops the release when nothing meaningful has landed, so tags always
+  # correspond to a real change.
+  validate-version-bump:
+    needs: check-version-bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify version bump is triggered
+        if: needs.check-version-bump.outputs.triggers_bump != 'true'
+        run: |
+          echo "::error::Forbidden to release a version without a version bump"
+          echo "::warning::Commits on dev must include changes beyond 'docs', 'style', 'test' or 'ci'"
+          exit 1
+      - name: Confirm version bump
+        run: |
+          echo "Version bump of type '${{ needs.check-version-bump.outputs.bump_type }}' will be applied"
+
+  # Bumps root and deployments package.json in step, and commits to dev.
+  bump-version:
+    needs: [check-version-bump, validate-version-bump]
+    uses: NexusMutual/workflows/.github/workflows/bump.yml@master
+    with:
+      environment: production
+      ref: dev
+      bump-command: |
+        echo 'Executing npm version bump: ${{ needs.check-version-bump.outputs.bump_type }} on root and deployments package.json'
+        npm version "${{ needs.check-version-bump.outputs.bump_type }}" --no-git-tag-version
+        cd deployments
+        npm version $(jq -r '.version' ../package.json) --no-git-tag-version
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  # Fast-forwards master to dev, including the bump commit.
+  ff-master:
+    needs: bump-version
+    uses: NexusMutual/workflows/.github/workflows/fast-forward.yml@master
+    with:
+      environment: production
+      source-ref: dev
+      target-ref: master
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  publish-deployments:
+    needs: ff-master
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # deployments/build.mjs reads contract artifacts, so compile first
+      - name: Build contracts
+        run: pnpm exec hardhat build
+
+      - name: Build deployments
+        run: pnpm run deployments:build
+
+      - name: Publish to npm with @latest tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm run deployments:publish:latest
+
+  git-tag-release:
+    needs: ff-master
+    uses: NexusMutual/workflows/.github/workflows/git-tag-github-release.yml@master
+    with:
+      environment: production
+      ref: master
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
