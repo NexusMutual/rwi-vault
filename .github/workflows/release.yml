@@ -1,101 +1,73 @@
 # Release Workflow
 #
-# Creates a stable release and publishes @nexusmutual/rwi-vault-deployments to
-# npm with the '@latest' tag. Triggered manually via workflow_dispatch.
+# Entry point for all npm publishing of @nexusmutual/rwi-vault-deployments.
+# Handles both the production (@latest) and release-candidate (@next) channels
+# through a single workflow, because npm trusted publishing authorises one
+# workflow file rather than a repository.
 #
-# Behaviour:
-# - Checks whether commits on dev since the last tag trigger a version bump,
-#   using conventional commits
-# - If they do:
-#   - Bumps the version in the root and deployments package.json on dev
-#   - Fast-forwards master to dev so master holds the released state
-#   - Publishes the deployments package to npm with '@latest'
-#   - Creates a git tag and a GitHub release with notes
-# - If they do not, the workflow fails and nothing is published or tagged
+# Triggered manually. Pick the channel when dispatching:
+# - next   builds an RC from dev and publishes it under '@next'. Commits nothing.
+# - latest bumps the version, fast-forwards master, tags, publishes '@latest',
+#          then opens version bump PRs in the repositories that consume it.
 #
-# dev is the integration branch here, taking the role release-candidate plays
-# in smart-contracts.
+# Publishing uses OIDC, so no npm token is stored here. The package is
+# registered on npm with this repository and this workflow file as its trusted
+# publisher; renaming the file breaks publishing until npm is updated to match.
 
 name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      channel:
+        description: "Which npm tag to publish"
+        type: choice
+        options:
+          - next
+          - latest
+        default: next
 
-# Serialised with release-next.yml: both publish the same package and derive
-# versions from the same tags, so they must not run concurrently.
+permissions:
+  contents: read
+
+# Both channels publish the same package and derive versions from the same
+# tags, so they must not run concurrently.
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  # Determines whether commits since the last tag warrant a version bump.
-  # Outputs: bump_type (major|minor|patch), triggers_bump (true|false)
-  check-version-bump:
-    uses: NexusMutual/workflows/.github/workflows/check-version-bump.yml@master
-    with:
-      ref: dev
-      environment: production
-      bump-command: |
-        timeout 5s npx conventional-recommended-bump --config .github/config/conventional-bump-setup.js
-    secrets:
-      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
-      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+  prep-next:
+    if: inputs.channel == 'next'
+    uses: ./.github/workflows/prep-next.yml
+    secrets: inherit
 
-  # Stops the release when nothing meaningful has landed, so tags always
-  # correspond to a real change.
-  validate-version-bump:
-    needs: check-version-bump
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify version bump is triggered
-        if: needs.check-version-bump.outputs.triggers_bump != 'true'
-        run: |
-          echo "::error::Forbidden to release a version without a version bump"
-          echo "::warning::Commits on dev must include changes beyond 'docs', 'style', 'test' or 'ci'"
-          exit 1
-      - name: Confirm version bump
-        run: |
-          echo "Version bump of type '${{ needs.check-version-bump.outputs.bump_type }}' will be applied"
+  prep-latest:
+    if: inputs.channel == 'latest'
+    uses: ./.github/workflows/prep-latest.yml
+    secrets: inherit
 
-  # Bumps root and deployments package.json in step, and commits to dev.
-  bump-version:
-    needs: [check-version-bump, validate-version-bump]
-    uses: NexusMutual/workflows/.github/workflows/bump.yml@master
-    with:
-      environment: production
-      ref: dev
-      bump-command: |
-        echo 'Executing npm version bump: ${{ needs.check-version-bump.outputs.bump_type }} on root and deployments package.json'
-        npm version "${{ needs.check-version-bump.outputs.bump_type }}" --no-git-tag-version
-        cd deployments
-        npm version $(jq -r '.version' ../package.json) --no-git-tag-version
-    secrets:
-      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
-      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
-
-  # Fast-forwards master to dev, including the bump commit.
-  ff-master:
-    needs: bump-version
-    uses: NexusMutual/workflows/.github/workflows/fast-forward.yml@master
-    with:
-      environment: production
-      source-ref: dev
-      target-ref: master
-    secrets:
-      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
-      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
-
-  publish-deployments:
-    needs: ff-master
+  publish:
+    needs: [prep-next, prep-latest]
+    # Only one prep job runs and the other is skipped, so the run is judged on
+    # whichever produced an artifact.
+    if: >-
+      always() &&
+      ((needs.prep-next.result == 'success' && needs.prep-next.outputs.artifact_name != '') ||
+       (needs.prep-latest.result == 'success' && needs.prep-latest.outputs.artifact_name != ''))
     runs-on: ubuntu-latest
     environment: production
     permissions:
+      # Required for npm trusted publishing. This is what replaces NPM_TOKEN.
+      id-token: write
       contents: read
     steps:
-      - name: Checkout master
+      # pnpm/action-setup reads the pnpm version from package.json, and
+      # setup-node reads .nvmrc, so the repository has to be present.
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: master
+          ref: ${{ inputs.channel == 'latest' && 'master' || 'dev' }}
           persist-credentials: false
 
       - name: Setup pnpm
@@ -105,30 +77,41 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          registry-url: 'https://registry.npmjs.org'
-          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+      # The package was built and checked in the prep job, so publishing the
+      # artifact means the tested tree is what reaches npm. It lands outside
+      # deployments/ so nothing from the checkout can leak into the tarball.
+      - name: Download deployments package
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.prep-next.outputs.artifact_name || needs.prep-latest.outputs.artifact_name }}
+          path: package
 
-      # deployments/build.mjs reads contract artifacts, so compile first
-      - name: Build contracts
-        run: pnpm exec hardhat build
+      - name: Publish
+        working-directory: package
+        run: pnpm publish --tag ${{ inputs.channel }} --access public --ignore-scripts --no-git-checks
 
-      - name: Build deployments
-        run: pnpm run deployments:build
-
-      - name: Publish to npm with @latest tag
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm run deployments:publish:latest
-
-  git-tag-release:
-    needs: ff-master
-    uses: NexusMutual/workflows/.github/workflows/git-tag-github-release.yml@master
+  # Raises the new version in the repositories that depend on the package.
+  bump-prs:
+    needs: [prep-latest, publish]
+    if: always() && inputs.channel == 'latest' && needs.publish.result == 'success'
+    strategy:
+      matrix:
+        include:
+          - repo: services
+            base-branch: dev
+            change-type: build
+      fail-fast: false
+    uses: NexusMutual/workflows/.github/workflows/open-pr.yml@chore/pnpm-setup
     with:
       environment: production
-      ref: master
+      repository: ${{ matrix.repo }}
+      base-branch: ${{ matrix.base-branch }}
+      branch-name: "${{ matrix.change-type }}/rwi-vault-deployments-${{ needs.prep-latest.outputs.bumped_version }}-${{ github.run_id }}"
+      change-command: pnpm i --save-exact @nexusmutual/rwi-vault-deployments@${{ needs.prep-latest.outputs.bumped_version }}
+      commit-message: "${{ matrix.change-type }}: update @nexusmutual/rwi-vault-deployments to ${{ needs.prep-latest.outputs.bumped_version }}"
+      pr-body: "Updated @nexusmutual/rwi-vault-deployments to [${{ needs.prep-latest.outputs.bumped_version }}](https://github.com/NexusMutual/rwi-vault/releases/tag/v${{ needs.prep-latest.outputs.bumped_version }})"
     secrets:
       DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
       DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
