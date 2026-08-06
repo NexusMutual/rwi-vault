@@ -57,13 +57,12 @@ jobs:
        (needs.prep-latest.result == 'success' && needs.prep-latest.outputs.artifact_name != ''))
     runs-on: ubuntu-latest
     environment: production
-    env:
-      PNPM_VERSION: 11.20.0
     permissions:
       # Required for npm trusted publishing. This is what replaces NPM_TOKEN.
       id-token: write
       contents: read
     steps:
+      # pnpm/action-setup reads the pnpm version from packageManager, and
       # setup-node reads .nvmrc, so the repository has to be present even though
       # we publish a pre-built artifact rather than building from this checkout.
       - name: Checkout
@@ -72,6 +71,9 @@ jobs:
           ref: ${{ inputs.channel == 'latest' && 'master' || 'dev' }}
           persist-credentials: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       # registry-url makes setup-node write an .npmrc pinning _authToken to an
       # unset ${NODE_AUTH_TOKEN}, which pnpm then sends in place of the OIDC
       # token. Leave it out.
@@ -79,12 +81,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      # packageManager pins pnpm 10, which predates OIDC trusted publishing.
-      # pnpm/action-setup rejects a version that disagrees with that field, so
-      # install 11.x globally instead.
-      - name: Install pnpm for trusted publishing
-        run: npm install -g "pnpm@$PNPM_VERSION"
 
       # The package was built and checked in the prep job, so publishing the
       # artifact means the tested tree is what reaches npm. It lands outside
@@ -95,14 +91,9 @@ jobs:
           name: ${{ needs.prep-next.outputs.artifact_name || needs.prep-latest.outputs.artifact_name }}
           path: package
 
-      # pnpm reads packageManager from the nearest package.json, so this
-      # directory keeps the version installed above while the repository root
-      # resolves back to pnpm 10. Check the version here before publishing.
       - name: Publish
         working-directory: package
-        run: |
-          test "$(pnpm --version)" = "$PNPM_VERSION"
-          pnpm publish --tag ${{ inputs.channel }} --access public --ignore-scripts --no-git-checks
+        run: pnpm publish --tag ${{ inputs.channel }} --access public --ignore-scripts --no-git-checks
 
   # Raises the new version in the repositories that depend on the package.
   bump-prs:
