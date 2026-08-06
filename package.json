@@ -17,9 +17,7 @@
     "storage:extract": "node ./scripts/extract-storage-layout.mjs",
     "lint": "slippy \"contracts/**/*.sol\" \"test/**/*.sol\"",
     "typecheck": "hardhat build && pnpm run deployments:build && tsc --noEmit",
-    "deployments:build": "node ./deployments/build.mjs",
-    "deployments:publish:latest": "cd deployments && npm publish --access public",
-    "deployments:publish:next": "cd deployments && npm publish --access public --tag next"
+    "deployments:build": "node ./deployments/build.mjs"
   },
   "devDependencies": {
     "@nexusmutual/ethers-v6-aws-kms-signer": "^0.0.3",

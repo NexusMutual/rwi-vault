@@ -1,0 +1,148 @@
+# Prep Latest Workflow
+#
+# Reusable workflow that prepares a production release of
+# @nexusmutual/rwi-vault-deployments:
+# - Verifies that commits on dev since the last tag warrant a version bump
+# - Fast-forwards master to dev, then commits the version bump on master
+# - Builds the contracts and the deployments package at the new version
+# - Uploads the package as a build artifact
+# - Creates the git tag and GitHub release
+# - Rebases the version bump commit back onto dev
+#
+# Called by release.yml, which performs the npm publish.
+
+name: Prep Latest
+
+on:
+  workflow_call:
+    outputs:
+      bumped_version:
+        description: "The new version after the bump"
+        value: ${{ jobs.bump-version.outputs.bumped_version }}
+      artifact_name:
+        description: "Name of the uploaded deployments package artifact"
+        value: ${{ jobs.build-and-checks.outputs.artifact_name }}
+
+jobs:
+  # Determines whether commits since the last tag warrant a version bump.
+  # Outputs: bump_type (major|minor|patch), triggers_bump (true|false)
+  check-version-bump:
+    uses: NexusMutual/workflows/.github/workflows/check-version-bump.yml@chore/pnpm-setup
+    with:
+      ref: dev
+      environment: production
+      bump-command: |
+        timeout 5s npx conventional-recommended-bump --config .github/config/conventional-bump-setup.js
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  # Stops the release when nothing meaningful has landed, so tags always
+  # correspond to a real change.
+  validate-version-bump:
+    needs: check-version-bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify version bump is triggered
+        if: needs.check-version-bump.outputs.triggers_bump != 'true'
+        run: |
+          echo "::error::Forbidden to release a version without a version bump"
+          echo "::warning::Commits on dev must include changes beyond 'docs', 'style', 'test' or 'ci'"
+          exit 1
+      - name: Confirm version bump
+        run: |
+          echo "Version bump of type '${{ needs.check-version-bump.outputs.bump_type }}' will be applied"
+
+  # master takes dev's state first, so the bump commit lands on the branch that
+  # is tagged and published.
+  ff-master:
+    needs: [check-version-bump, validate-version-bump]
+    uses: NexusMutual/workflows/.github/workflows/fast-forward.yml@chore/pnpm-setup
+    with:
+      environment: production
+      source-ref: dev
+      target-ref: master
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  # Bumps the root package.json and commits it to master.
+  # deployments/package.json takes its version from the root at build time.
+  bump-version:
+    needs: [check-version-bump, ff-master]
+    uses: NexusMutual/workflows/.github/workflows/bump.yml@chore/pnpm-setup
+    with:
+      environment: production
+      ref: master
+      bump-command: |
+        echo 'Executing pnpm version bump: ${{ needs.check-version-bump.outputs.bump_type }}'
+        pnpm version "${{ needs.check-version-bump.outputs.bump_type }}" --no-git-tag-version --no-git-checks
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  build-and-checks:
+    needs: bump-version
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: rwi-vault-deployments-${{ needs.bump-version.outputs.bumped_version }}
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # deployments/build.mjs reads contract artifacts, so compile first
+      - name: Build contracts
+        run: pnpm exec hardhat build
+
+      - name: Build deployments
+        run: pnpm run deployments:build
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Upload deployments package
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwi-vault-deployments-${{ needs.bump-version.outputs.bumped_version }}
+          path: deployments
+          if-no-files-found: error
+
+  git-tag-release:
+    needs: build-and-checks
+    uses: NexusMutual/workflows/.github/workflows/git-tag-github-release.yml@chore/pnpm-setup
+    with:
+      environment: production
+      ref: master
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  # Brings the version bump commit back to dev, so the two branches agree.
+  rebase-dev:
+    needs: build-and-checks
+    uses: NexusMutual/workflows/.github/workflows/rebase.yml@chore/pnpm-setup
+    with:
+      environment: production
+      source-ref: master
+      target-ref: dev
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}

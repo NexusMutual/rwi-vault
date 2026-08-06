@@ -1,0 +1,116 @@
+# Prep Next Workflow
+#
+# Reusable workflow that prepares a release-candidate build of
+# @nexusmutual/rwi-vault-deployments:
+# - Verifies that commits on dev since the last tag warrant a version bump
+# - Works out the next RC number for that base version
+# - Builds the contracts and the deployments package at the RC version
+# - Uploads the package as a build artifact
+#
+# Called by release.yml, which performs the npm publish.
+#
+# NOTE: This workflow commits nothing. The RC version is applied to the working
+# tree so the built package carries it; the real bump commit happens in
+# prep-latest.yml.
+
+name: Prep Next
+
+on:
+  workflow_call:
+    outputs:
+      rc_version:
+        description: "The RC version, e.g. 1.2.0-rc.0"
+        value: ${{ jobs.rc-version.outputs.rc_version }}
+      artifact_name:
+        description: "Name of the uploaded deployments package artifact"
+        value: ${{ jobs.build-and-checks.outputs.artifact_name }}
+
+jobs:
+  # Determines whether commits since the last tag warrant a version bump.
+  # Outputs: bump_type (major|minor|patch), triggers_bump (true|false)
+  check-version-bump:
+    uses: NexusMutual/workflows/.github/workflows/check-version-bump.yml@chore/pnpm-setup
+    with:
+      ref: dev
+      environment: production
+      bump-command: |
+        timeout 5s npx conventional-recommended-bump --config .github/config/conventional-bump-setup.js
+    secrets:
+      DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
+      DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
+
+  # Stops the run when nothing meaningful has landed, so an RC always
+  # corresponds to a real change.
+  validate-version-bump:
+    needs: check-version-bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify version bump is triggered
+        if: needs.check-version-bump.outputs.triggers_bump != 'true'
+        run: |
+          echo "::error::Forbidden to release a version without a version bump"
+          echo "::warning::Commits on dev must include changes beyond 'docs', 'style', 'test' or 'ci'"
+          exit 1
+      - name: Confirm version bump
+        run: |
+          echo "Version bump of type '${{ needs.check-version-bump.outputs.bump_type }}' will be applied"
+
+  # Works out the next free RC number for this base version.
+  # Outputs: rc_version (e.g. 1.2.0-rc.0)
+  rc-version:
+    needs: [check-version-bump, validate-version-bump]
+    uses: NexusMutual/workflows/.github/workflows/determine-rc-version.yml@chore/pnpm-setup
+    with:
+      package-name: "@nexusmutual/rwi-vault-deployments"
+      bump-type: ${{ needs.check-version-bump.outputs.bump_type }}
+
+  build-and-checks:
+    needs: rc-version
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: rwi-vault-deployments-${{ needs.rc-version.outputs.rc_version }}
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # Applied to the working tree only, so the built package carries the RC
+      # version. deployments/build.mjs copies the root version into the package.
+      - name: Apply RC version
+        env:
+          RC_VERSION: ${{ needs.rc-version.outputs.rc_version }}
+        run: pnpm version "$RC_VERSION" --no-git-tag-version --no-git-checks
+
+      # deployments/build.mjs reads contract artifacts, so compile first
+      - name: Build contracts
+        run: pnpm exec hardhat build
+
+      - name: Build deployments
+        run: pnpm run deployments:build
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Upload deployments package
+        uses: actions/upload-artifact@v4
+        with:
+          name: rwi-vault-deployments-${{ needs.rc-version.outputs.rc_version }}
+          path: deployments
+          if-no-files-found: error
