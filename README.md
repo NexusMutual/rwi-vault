@@ -26,12 +26,12 @@ The source for that package lives in this repo under `deployments/`. After a mai
 
 The deployments package is published by the **Release** workflow, run from the Actions tab. Dispatch it and pick a channel:
 
-- **next** builds a release candidate (`1.2.0-rc.0`) from `dev` and publishes it under the `next` tag. It commits nothing, so it can be run repeatedly.
+- **next** builds a release candidate (`1.2.0-rc.0`) from `dev` and publishes it under the `next` tag, leaving git untouched. Run it as often as you like.
 - **latest** fast-forwards `master` to `dev`, commits the version bump there, publishes under the `latest` tag, creates the git tag and GitHub release, rebases the bump back onto `dev`, and opens a version bump PR in `services`.
 
-Both take the version from [Conventional Commits](https://www.conventionalcommits.org/) since the last tag. Commits typed `docs`, `style`, `test` or `ci` do not produce a release.
+Both take the version from [Conventional Commits](https://www.conventionalcommits.org/) since the last tag. A release needs at least one commit typed beyond `docs`, `style`, `test` and `ci`.
 
-Each channel builds the package and runs lint and tests before publishing, and the publish step uploads that same build — what reaches npm is what was tested.
+Each channel builds the package and runs lint and tests before publishing. The publish step ships that same build.
 
 ### Required setup
 
@@ -42,11 +42,13 @@ The release runs against a `production` [environment](https://docs.github.com/en
 | `DEPLOYER_APP_ID` | identifies the deployer GitHub App |
 | `DEPLOYER_APP_PK` | private key for that app |
 
-Every job that needs them declares `environment: production`, which is where these secrets are expected to live.
+Every job that needs them declares `environment: production`. Define these secrets on that environment.
 
-The deployer GitHub App (`infra-deployooor`) also needs to be installed on this repository and listed as a bypass actor on the branch ruleset, since the release pushes a version bump to `master` and rebases `dev`.
+The release pushes a version bump to `master` and rebases `dev`. Install the deployer GitHub App (`infra-deployooor`) on this repository and list it as a bypass actor on the branch ruleset.
 
-npm needs no token. Publishing authenticates through [trusted publishing](https://docs.npmjs.com/trusted-publishers), which is why the publish job requests `id-token: write`. The package is registered on npm against this repository and `.github/workflows/release.yml`, so **renaming that file stops publishing** until the npm setting is updated to match. Both channels publish from it for the same reason: trusted publishing authorises a workflow file, not a repository.
+Publishing authenticates through [trusted publishing](https://docs.npmjs.com/trusted-publishers). The publish job requests `id-token: write`, and npm registers the package against this repository and `.github/workflows/release.yml`.
+
+Trusted publishing authorises a workflow file, so both channels publish from `release.yml`. Update the npm registration whenever that file is renamed.
 
 ## Audits
 
