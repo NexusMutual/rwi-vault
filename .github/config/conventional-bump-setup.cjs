@@ -20,7 +20,7 @@ const RELEASE_TYPES = {
 
 // The parser's default header pattern rejects the '!' marker, so 'feat!: x'
 // arrives with no type. Read the marker off the raw header.
-const BREAKING_HEADER_RE = /^\w+(?:\([^)]*\))?!:/;
+const BREAKING_HEADER_RE = /^\w+(?:\([^)]*\))?!:[ \t]+\S/;
 
 const config = {
   whatBump: commits => {
