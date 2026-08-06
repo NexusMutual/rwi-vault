@@ -18,6 +18,10 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 200,
           },
+          // Required by scripts/extract-storage-layout.mjs
+          outputSelection: {
+            "*": { "*": ["storageLayout"] },
+          },
         },
       },
       production: {
@@ -26,6 +30,10 @@ const config: HardhatUserConfig = {
           optimizer: {
             enabled: true,
             runs: 200,
+          },
+          // Required by scripts/extract-storage-layout.mjs
+          outputSelection: {
+            "*": { "*": ["storageLayout"] },
           },
         },
       },

@@ -1,0 +1,742 @@
+{
+  "ERC20": {
+    "storage": [
+      {
+        "label": "_balances",
+        "slot": 0,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_uint256)",
+        "size": 32
+      },
+      {
+        "label": "_allowances",
+        "slot": 1,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+        "size": 32
+      },
+      {
+        "label": "_totalSupply",
+        "slot": 2,
+        "offset": 0,
+        "type": "t_uint256",
+        "size": 32
+      },
+      {
+        "label": "_name",
+        "slot": 3,
+        "offset": 0,
+        "type": "t_string_storage",
+        "size": 32
+      },
+      {
+        "label": "_symbol",
+        "slot": 4,
+        "offset": 0,
+        "type": "t_string_storage",
+        "size": 32
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "size": 20
+      },
+      "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_string_storage": {
+        "encoding": "bytes",
+        "size": 32
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "size": 32
+      }
+    }
+  },
+  "ERC7540": {
+    "storage": [
+      {
+        "label": "_balances",
+        "slot": 0,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_uint256)",
+        "size": 32
+      },
+      {
+        "label": "_allowances",
+        "slot": 1,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+        "size": 32
+      },
+      {
+        "label": "_totalSupply",
+        "slot": 2,
+        "offset": 0,
+        "type": "t_uint256",
+        "size": 32
+      },
+      {
+        "label": "_name",
+        "slot": 3,
+        "offset": 0,
+        "type": "t_string_storage",
+        "size": 32
+      },
+      {
+        "label": "_symbol",
+        "slot": 4,
+        "offset": 0,
+        "type": "t_string_storage",
+        "size": 32
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "size": 20
+      },
+      "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_string_storage": {
+        "encoding": "bytes",
+        "size": 32
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "size": 32
+      }
+    }
+  },
+  "Locks": {
+    "storage": [
+      {
+        "label": "memberLocks",
+        "slot": 0,
+        "offset": 0,
+        "type": "t_mapping(t_uint256,t_array(t_struct(Lock)_storage)dyn_storage)",
+        "size": 32
+      }
+    ],
+    "types": {
+      "t_array(t_struct(Lock)_storage)dyn_storage": {
+        "encoding": "dynamic_array",
+        "size": 32
+      },
+      "t_mapping(t_uint256,t_array(t_struct(Lock)_storage)dyn_storage)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_struct(Lock)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "shares",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint96",
+            "size": 12
+          },
+          {
+            "label": "startTime",
+            "slot": 0,
+            "offset": 12,
+            "type": "t_uint32",
+            "size": 4
+          },
+          {
+            "label": "period",
+            "slot": 0,
+            "offset": 16,
+            "type": "t_uint32",
+            "size": 4
+          }
+        ]
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "size": 32
+      },
+      "t_uint32": {
+        "encoding": "inplace",
+        "size": 4
+      },
+      "t_uint96": {
+        "encoding": "inplace",
+        "size": 12
+      }
+    }
+  },
+  "RWIRegistry": {
+    "storage": [
+      {
+        "label": "contracts",
+        "slot": 0,
+        "offset": 0,
+        "type": "t_mapping(t_uint256,t_struct(Contract)_storage)",
+        "size": 32
+      },
+      {
+        "label": "contractIndexes",
+        "slot": 1,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_uint256)",
+        "size": 32
+      },
+      {
+        "label": "membersMeta",
+        "slot": 2,
+        "offset": 0,
+        "type": "t_struct(MembersMeta)_storage",
+        "size": 32
+      },
+      {
+        "label": "members",
+        "slot": 3,
+        "offset": 0,
+        "type": "t_mapping(t_uint256,t_address)",
+        "size": 32
+      },
+      {
+        "label": "memberIds",
+        "slot": 4,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_uint256)",
+        "size": 32
+      },
+      {
+        "label": "isEmergencyAdmin",
+        "slot": 5,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_bool)",
+        "size": 32
+      },
+      {
+        "label": "systemPause",
+        "slot": 6,
+        "offset": 0,
+        "type": "t_struct(SystemPause)_storage",
+        "size": 32
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "size": 20
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "size": 1
+      },
+      "t_mapping(t_address,t_bool)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_uint256,t_address)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_uint256,t_struct(Contract)_storage)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_struct(Contract)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "addr",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_address",
+            "size": 20
+          },
+          {
+            "label": "isProxy",
+            "slot": 0,
+            "offset": 20,
+            "type": "t_bool",
+            "size": 1
+          }
+        ]
+      },
+      "t_struct(MembersMeta)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "memberCount",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint48",
+            "size": 6
+          },
+          {
+            "label": "lastMemberId",
+            "slot": 0,
+            "offset": 6,
+            "type": "t_uint48",
+            "size": 6
+          }
+        ]
+      },
+      "t_struct(SystemPause)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "config",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint48",
+            "size": 6
+          },
+          {
+            "label": "proposedConfig",
+            "slot": 0,
+            "offset": 6,
+            "type": "t_uint48",
+            "size": 6
+          },
+          {
+            "label": "proposer",
+            "slot": 0,
+            "offset": 12,
+            "type": "t_address",
+            "size": 20
+          }
+        ]
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "size": 32
+      },
+      "t_uint48": {
+        "encoding": "inplace",
+        "size": 6
+      }
+    }
+  },
+  "RWIVault": {
+    "storage": [
+      {
+        "label": "_balances",
+        "slot": 0,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_uint256)",
+        "size": 32
+      },
+      {
+        "label": "_allowances",
+        "slot": 1,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+        "size": 32
+      },
+      {
+        "label": "_totalSupply",
+        "slot": 2,
+        "offset": 0,
+        "type": "t_uint256",
+        "size": 32
+      },
+      {
+        "label": "_name",
+        "slot": 3,
+        "offset": 0,
+        "type": "t_string_storage",
+        "size": 32
+      },
+      {
+        "label": "_symbol",
+        "slot": 4,
+        "offset": 0,
+        "type": "t_string_storage",
+        "size": 32
+      },
+      {
+        "label": "assetCap",
+        "slot": 5,
+        "offset": 0,
+        "type": "t_uint256",
+        "size": 32
+      },
+      {
+        "label": "depositRequestNextId",
+        "slot": 6,
+        "offset": 0,
+        "type": "t_uint256",
+        "size": 32
+      },
+      {
+        "label": "redeemRequestNextId",
+        "slot": 7,
+        "offset": 0,
+        "type": "t_uint256",
+        "size": 32
+      },
+      {
+        "label": "redeemRequestNextFulfillId",
+        "slot": 8,
+        "offset": 0,
+        "type": "t_uint256",
+        "size": 32
+      },
+      {
+        "label": "depositRequests",
+        "slot": 9,
+        "offset": 0,
+        "type": "t_mapping(t_uint256,t_struct(DepositRequestData)_storage)",
+        "size": 32
+      },
+      {
+        "label": "redeemRequests",
+        "slot": 10,
+        "offset": 0,
+        "type": "t_mapping(t_uint256,t_struct(RedeemRequestData)_storage)",
+        "size": 32
+      },
+      {
+        "label": "rateConfig",
+        "slot": 11,
+        "offset": 0,
+        "type": "t_struct(BaseRateConfig)_storage",
+        "size": 32
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "size": 20
+      },
+      "t_enum(RequestStatus)": {
+        "encoding": "inplace",
+        "size": 1
+      },
+      "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_uint256,t_struct(DepositRequestData)_storage)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_uint256,t_struct(RedeemRequestData)_storage)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_string_storage": {
+        "encoding": "bytes",
+        "size": 32
+      },
+      "t_struct(BaseRateConfig)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "startRate",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint64",
+            "size": 8
+          },
+          {
+            "label": "ratePerSecond",
+            "slot": 0,
+            "offset": 8,
+            "type": "t_uint64",
+            "size": 8
+          },
+          {
+            "label": "activeFrom",
+            "slot": 0,
+            "offset": 16,
+            "type": "t_uint32",
+            "size": 4
+          },
+          {
+            "label": "proposedRate",
+            "slot": 0,
+            "offset": 20,
+            "type": "t_uint64",
+            "size": 8
+          },
+          {
+            "label": "proposedActivationTime",
+            "slot": 0,
+            "offset": 28,
+            "type": "t_uint32",
+            "size": 4
+          }
+        ]
+      },
+      "t_struct(DepositRequestData)_storage": {
+        "encoding": "inplace",
+        "size": 64,
+        "members": [
+          {
+            "label": "assets",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint96",
+            "size": 12
+          },
+          {
+            "label": "fulfilledAssets",
+            "slot": 0,
+            "offset": 12,
+            "type": "t_uint96",
+            "size": 12
+          },
+          {
+            "label": "memberId",
+            "slot": 0,
+            "offset": 24,
+            "type": "t_uint32",
+            "size": 4
+          },
+          {
+            "label": "lockPeriod",
+            "slot": 0,
+            "offset": 28,
+            "type": "t_uint32",
+            "size": 4
+          },
+          {
+            "label": "status",
+            "slot": 1,
+            "offset": 0,
+            "type": "t_enum(RequestStatus)",
+            "size": 1
+          }
+        ]
+      },
+      "t_struct(RedeemRequestData)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "shares",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint96",
+            "size": 12
+          },
+          {
+            "label": "fulfilledShares",
+            "slot": 0,
+            "offset": 12,
+            "type": "t_uint96",
+            "size": 12
+          },
+          {
+            "label": "memberId",
+            "slot": 0,
+            "offset": 24,
+            "type": "t_uint32",
+            "size": 4
+          },
+          {
+            "label": "status",
+            "slot": 0,
+            "offset": 28,
+            "type": "t_enum(RequestStatus)",
+            "size": 1
+          }
+        ]
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "size": 32
+      },
+      "t_uint32": {
+        "encoding": "inplace",
+        "size": 4
+      },
+      "t_uint64": {
+        "encoding": "inplace",
+        "size": 8
+      },
+      "t_uint96": {
+        "encoding": "inplace",
+        "size": 12
+      }
+    }
+  },
+  "TemporaryRWIRegistry": {
+    "storage": [
+      {
+        "label": "contracts",
+        "slot": 0,
+        "offset": 0,
+        "type": "t_mapping(t_uint256,t_struct(Contract)_storage)",
+        "size": 32
+      },
+      {
+        "label": "contractIndexes",
+        "slot": 1,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_uint256)",
+        "size": 32
+      },
+      {
+        "label": "membersMeta",
+        "slot": 2,
+        "offset": 0,
+        "type": "t_struct(MembersMeta)_storage",
+        "size": 32
+      },
+      {
+        "label": "members",
+        "slot": 3,
+        "offset": 0,
+        "type": "t_mapping(t_uint256,t_address)",
+        "size": 32
+      },
+      {
+        "label": "memberIds",
+        "slot": 4,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_uint256)",
+        "size": 32
+      },
+      {
+        "label": "isEmergencyAdmin",
+        "slot": 5,
+        "offset": 0,
+        "type": "t_mapping(t_address,t_bool)",
+        "size": 32
+      },
+      {
+        "label": "systemPause",
+        "slot": 6,
+        "offset": 0,
+        "type": "t_struct(SystemPause)_storage",
+        "size": 32
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "size": 20
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "size": 1
+      },
+      "t_mapping(t_address,t_bool)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_uint256,t_address)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_mapping(t_uint256,t_struct(Contract)_storage)": {
+        "encoding": "mapping",
+        "size": 32
+      },
+      "t_struct(Contract)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "addr",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_address",
+            "size": 20
+          },
+          {
+            "label": "isProxy",
+            "slot": 0,
+            "offset": 20,
+            "type": "t_bool",
+            "size": 1
+          }
+        ]
+      },
+      "t_struct(MembersMeta)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "memberCount",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint48",
+            "size": 6
+          },
+          {
+            "label": "lastMemberId",
+            "slot": 0,
+            "offset": 6,
+            "type": "t_uint48",
+            "size": 6
+          }
+        ]
+      },
+      "t_struct(SystemPause)_storage": {
+        "encoding": "inplace",
+        "size": 32,
+        "members": [
+          {
+            "label": "config",
+            "slot": 0,
+            "offset": 0,
+            "type": "t_uint48",
+            "size": 6
+          },
+          {
+            "label": "proposedConfig",
+            "slot": 0,
+            "offset": 6,
+            "type": "t_uint48",
+            "size": 6
+          },
+          {
+            "label": "proposer",
+            "slot": 0,
+            "offset": 12,
+            "type": "t_address",
+            "size": 20
+          }
+        ]
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "size": 32
+      },
+      "t_uint48": {
+        "encoding": "inplace",
+        "size": 6
+      }
+    }
+  }
+}
