@@ -30,9 +30,11 @@ const config = {
       const locations = [commit.body, commit.subject, commit.footer];
       const notesTitles = (commit.notes || []).map(note => note.title);
       const allLocations = [...locations, ...notesTitles];
-      // Conventional Commits treats BREAKING-CHANGE as synonymous with BREAKING CHANGE
+      // Footer form only — avoid matching prose that mentions the phrase.
+      // Conventional Commits treats BREAKING-CHANGE as synonymous with BREAKING CHANGE.
+      const BREAKING_CHANGE_RE = /^BREAKING[ -]CHANGE:[ \t]+\S/m;
       const hasBreakingChangeText = allLocations.some(
-        text => text?.includes('BREAKING CHANGE') || text?.includes('BREAKING-CHANGE'),
+        text => typeof text === 'string' && BREAKING_CHANGE_RE.test(text),
       );
 
       if (hasBreakingChangeText) {
