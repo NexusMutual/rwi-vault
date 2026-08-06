@@ -57,6 +57,8 @@ jobs:
        (needs.prep-latest.result == 'success' && needs.prep-latest.outputs.artifact_name != ''))
     runs-on: ubuntu-latest
     environment: production
+    env:
+      PNPM_VERSION: 11.20.0
     permissions:
       # Required for npm trusted publishing. This is what replaces NPM_TOKEN.
       id-token: write
@@ -70,21 +72,19 @@ jobs:
           ref: ${{ inputs.channel == 'latest' && 'master' || 'dev' }}
           persist-credentials: false
 
+      # registry-url makes setup-node write an .npmrc pinning _authToken to an
+      # unset ${NODE_AUTH_TOKEN}, which pnpm then sends in place of the OIDC
+      # token. Leave it out.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          registry-url: "https://registry.npmjs.org"
 
-      # Publish-only: packageManager pins pnpm 10, which has no OIDC trusted-
-      # publishing support. Install a fixed 11.x via npm so pnpm/action-setup
-      # does not conflict with package.json's packageManager field. OIDC
-      # override of the setup-node auth placeholder needs pnpm >= 11.1.3.
-      - name: Install pnpm 11 for trusted publishing
-        run: |
-          PNPM_VERSION=11.20.0
-          npm install -g pnpm@11.20.0
-          test "$(pnpm --version)" = "$PNPM_VERSION"
+      # packageManager pins pnpm 10, which predates OIDC trusted publishing.
+      # pnpm/action-setup rejects a version that disagrees with that field, so
+      # install 11.x globally instead.
+      - name: Install pnpm for trusted publishing
+        run: npm install -g "pnpm@$PNPM_VERSION"
 
       # The package was built and checked in the prep job, so publishing the
       # artifact means the tested tree is what reaches npm. It lands outside
@@ -95,12 +95,13 @@ jobs:
           name: ${{ needs.prep-next.outputs.artifact_name || needs.prep-latest.outputs.artifact_name }}
           path: package
 
-      # setup-node writes a dummy NODE_AUTH_TOKEN when registry-url is set and no
-      # real token exists; clear it so publish uses OIDC instead of that placeholder.
+      # pnpm reads packageManager from the nearest package.json, so this
+      # directory keeps the version installed above while the repository root
+      # resolves back to pnpm 10. Check the version here before publishing.
       - name: Publish
         working-directory: package
         run: |
-          unset NODE_AUTH_TOKEN
+          test "$(pnpm --version)" = "$PNPM_VERSION"
           pnpm publish --tag ${{ inputs.channel }} --access public --ignore-scripts --no-git-checks
 
   # Raises the new version in the repositories that depend on the package.
