@@ -29,7 +29,7 @@ jobs:
   # Determines whether commits since the last tag warrant a version bump.
   # Outputs: bump_type (major|minor|patch), triggers_bump (true|false)
   check-version-bump:
-    uses: NexusMutual/workflows/.github/workflows/check-version-bump.yml@chore/pnpm-setup
+    uses: NexusMutual/workflows/.github/workflows/check-version-bump.yml@master
     with:
       ref: dev
       environment: production
@@ -59,7 +59,7 @@ jobs:
   # Outputs: rc_version (e.g. 1.2.0-rc.0)
   rc-version:
     needs: [check-version-bump, validate-version-bump]
-    uses: NexusMutual/workflows/.github/workflows/determine-rc-version.yml@chore/pnpm-setup
+    uses: NexusMutual/workflows/.github/workflows/determine-rc-version.yml@master
     with:
       package-name: "@nexusmutual/rwi-vault-deployments"
       bump-type: ${{ needs.check-version-bump.outputs.bump_type }}
