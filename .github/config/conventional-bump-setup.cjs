@@ -46,9 +46,6 @@ const config = {
       }
 
       switch (COMMIT_TYPES[commit.type]) {
-        case 'major':
-          breakingCount++;
-          break;
         case 'minor':
           featureCount++;
           break;
