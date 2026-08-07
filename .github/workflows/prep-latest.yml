@@ -32,7 +32,7 @@ jobs:
       ref: dev
       environment: production
       bump-command: |
-        timeout 5s npx conventional-recommended-bump --config .github/config/conventional-bump-setup.cjs
+        timeout 5s npx conventional-recommended-bump@12.1.0 --config .github/config/conventional-bump-setup.cjs
     secrets:
       DEPLOYER_APP_ID: ${{ secrets.DEPLOYER_APP_ID }}
       DEPLOYER_APP_PK: ${{ secrets.DEPLOYER_APP_PK }}
