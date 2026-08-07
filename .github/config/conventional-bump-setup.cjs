@@ -1,5 +1,4 @@
 const COMMIT_TYPES = {
-  breaking: 'major',
   feat: 'minor',
   fix: 'patch',
   perf: 'patch',
@@ -19,6 +18,10 @@ const RELEASE_TYPES = {
   2: 'PATCH',
 };
 
+// The parser's default header pattern rejects the '!' marker, so 'feat!: x'
+// arrives with no type. Read the marker off the raw header.
+const BREAKING_HEADER_RE = /^\w+(?:\([^)]*\))?!:[ \t]+\S/;
+
 const config = {
   whatBump: commits => {
     let level = null;
@@ -27,25 +30,19 @@ const config = {
     let patchCount = 0;
 
     commits.forEach(commit => {
-      const locations = [commit.body, commit.subject, commit.footer];
-      const notesTitles = (commit.notes || []).map(note => note.title);
-      const allLocations = [...locations, ...notesTitles];
       // Footer form only — avoid matching prose that mentions the phrase.
       // Conventional Commits treats BREAKING-CHANGE as synonymous with BREAKING CHANGE.
       const BREAKING_CHANGE_RE = /^BREAKING[ -]CHANGE:[ \t]+\S/m;
-      const hasBreakingChangeText = allLocations.some(
+      const hasBreakingChangeText = [commit.body, commit.subject, commit.footer].some(
         text => typeof text === 'string' && BREAKING_CHANGE_RE.test(text),
       );
 
-      if (hasBreakingChangeText) {
+      if (BREAKING_HEADER_RE.test(commit.header || '') || hasBreakingChangeText) {
         breakingCount++;
         return;
       }
 
       switch (COMMIT_TYPES[commit.type]) {
-        case 'major':
-          breakingCount++;
-          break;
         case 'minor':
           featureCount++;
           break;
