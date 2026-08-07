@@ -62,6 +62,7 @@ jobs:
       id-token: write
       contents: read
     steps:
+      # pnpm/action-setup reads the pnpm version from packageManager, and
       # setup-node reads .nvmrc, so the repository has to be present even though
       # we publish a pre-built artifact rather than building from this checkout.
       - name: Checkout
@@ -72,14 +73,14 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
+      # registry-url makes setup-node write an .npmrc pinning _authToken to an
+      # unset ${NODE_AUTH_TOKEN}, which pnpm then sends in place of the OIDC
+      # token. Leave it out.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          registry-url: "https://registry.npmjs.org"
 
       # The package was built and checked in the prep job, so publishing the
       # artifact means the tested tree is what reaches npm. It lands outside
@@ -90,13 +91,9 @@ jobs:
           name: ${{ needs.prep-next.outputs.artifact_name || needs.prep-latest.outputs.artifact_name }}
           path: package
 
-      # setup-node writes a dummy NODE_AUTH_TOKEN when registry-url is set and no
-      # real token exists; clear it so publish uses OIDC instead of that placeholder.
       - name: Publish
         working-directory: package
-        run: |
-          unset NODE_AUTH_TOKEN
-          pnpm publish --tag ${{ inputs.channel }} --access public --ignore-scripts --no-git-checks
+        run: pnpm publish --tag ${{ inputs.channel }} --access public --ignore-scripts --no-git-checks
 
   # Raises the new version in the repositories that depend on the package.
   bump-prs:
